@@ -1,0 +1,78 @@
+# dungeon-explorer
+
+A turn-based dungeon explorer drawn in ASCII in the terminal. Each level is generated from a seed, so the same seed always gives the same dungeon.
+
+## Setting up
+
+You need [uv](https://docs.astral.sh/uv/). It installs a suitable Python (3.12 or later) if you don't have one. From this folder:
+
+```bash
+uv sync
+```
+
+## How to play
+
+Start the game from this folder:
+
+```bash
+uv run dungeon-explorer
+```
+
+The game sits in the middle of your terminal, and moves back to the middle if you resize it. It opens on a title screen: `w` and `s` move between New game and Exit, and Enter picks one. New game asks for a seed. Type one and press Enter to play that dungeon, or leave it blank for a random one. Either way, the seed is shown at the top of the screen, so you can play the same dungeon again. To have a seed filled in for you, start with one:
+
+```bash
+uv run dungeon-explorer --seed 42
+```
+
+Each dungeon has between 3 and 7 floors, depending on its seed, and the top of the screen shows which one you're on, such as `Level 2 of 5`, and your hit points, which start at `HP 20/20`. If they run out, you die, and it's back to the title screen. Find the stairs on every floor to go deeper: the last floor's stairs lead out of the dungeon, and out is how you win.
+
+In a game, press a key; there's no need to press Enter:
+
+| Key | What it does |
+| --- | --- |
+| `w` `a` `s` `d` | Move one step north, west, south or east, or attack a monster in the way |
+| `>` | Go down the stairs, when you're standing on them |
+| `i` | Look at your items |
+| `p` | Drink a potion from your items, healing 5 hit points up to the most you can have |
+| `l` | Read every message so far, scrolling with `w` and `s` |
+| `c` | Clear the messages |
+| `?` | Show the help |
+| `q` | Leave the game for the title screen, after asking you to press `y` |
+
+Under the title banner and the status line, the View panel shows the area around you, the Map panel is a mini-map of the whole level at half size, and the Key panel explains the symbols. Messages sit below them, and the keys are in a bar along the bottom. Both show only what you've explored: entering a room reveals all of it, and corridors are mapped as you walk them. Walk onto an item to pick it up. The newest three messages show under the map, and a message that repeats is counted rather than repeated.
+
+| Symbol | What it is |
+| --- | --- |
+| `@` | You |
+| `#` | Wall |
+| `.` | Floor |
+| `>` | Stairs down |
+| `!` `$` `?` | A potion, gold or a scroll |
+| `)` `/` `\` | A dagger, a sword or an axe, doing 2, 3 or 4 damage. You fight with the best one you carry, or your fists for 1, and stronger ones only turn up deeper. |
+| `r` `g` `o` | A rat, a goblin or an orc. Monsters only show while you can see them, and while they can see you, they come after you, a step for each of yours. Once one is next to you, it attacks instead, for 1, 2 or 3 damage. Deeper floors have more of them, and tougher ones. |
+
+## Settings
+
+The game reads [settings.toml](settings.toml) from the folder it runs in. It sets the number of floors, the size of each level and its rooms, how many items and monsters turn up, every kind of item and monster, the size of the view and the number of log lines. Every value in it is the default, with a comment explaining it, so change what you like or delete what you don't need. To play with another file:
+
+```bash
+uv run dungeon-explorer --settings hard.toml
+```
+
+A mistake in the file, such as a misspelt key or a number that's too small, is listed on the title screen, and that value keeps its default, so the game always starts.
+
+Beside the seed, the top of the screen shows a six-character fingerprint of the settings, such as `Seed 42 (settings 546d8c)`, which is the defaults' fingerprint. The same seed and fingerprint always give the same dungeon. A fingerprint can only tell you whether two games' settings match, so when the settings aren't the defaults, the end of each game also prints a settings code, which holds them all:
+
+```bash
+uv run dungeon-explorer --seed 42 --settings-code eNqrVkopzUtPzc9TsqpW...
+```
+
+The code holds only what differs from the defaults, so small changes give short codes. It's checked just as a settings file is.
+
+## Running the checks
+
+```bash
+uv run pytest
+uv run ruff check
+uv run ruff format --check
+```

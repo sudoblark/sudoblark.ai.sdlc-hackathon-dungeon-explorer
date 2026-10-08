@@ -1,0 +1,91 @@
+# Settings for dungeon-explorer, read from the folder the game runs in.
+# Every value here is the default: change any of them, or delete the ones you
+# don't want to change. Use another file with --settings PATH.
+#
+# A mistake, such as a misspelt key or a number too small, shows a warning on
+# the title screen, and that value keeps its default.
+
+[dungeon]
+# Each seed's dungeon has between this many floors.
+min_floors = 3
+max_floors = 7
+
+[level]
+# The size of each floor, in tiles.
+width = 64
+height = 32
+max_rooms = 9
+# Each room's floor is between these sizes: [fewest, most].
+room_widths = [4, 12]
+room_heights = [3, 7]
+items_per_level = [3, 6]
+# On the first floor. Each floor deeper adds one to both.
+monsters_per_floor = [1, 3]
+
+[screen]
+# The view of the tiles around you.
+view_width = 31
+view_height = 15
+# How many of the newest messages show under the map.
+log_lines = 3
+
+# Each kind of item. Giving any [[items]] replaces this whole list.
+# first_floor is the first floor it can turn up on (1 if left out). A weapon
+# has damage, and something to drink has healing.
+
+[[items]]
+name = "potion"
+glyph = "!"
+healing = 5
+first_floor = 1
+
+[[items]]
+name = "gold"
+glyph = "$"
+first_floor = 1
+
+[[items]]
+name = "scroll"
+glyph = "?"
+first_floor = 1
+
+[[items]]
+name = "dagger"
+glyph = ")"
+damage = 2
+first_floor = 1
+
+[[items]]
+name = "sword"
+glyph = "/"
+damage = 3
+first_floor = 2
+
+[[items]]
+name = "axe"
+glyph = '\'
+damage = 4
+first_floor = 4
+
+# Each kind of monster. Giving any [[monsters]] replaces this whole list.
+
+[[monsters]]
+name = "rat"
+glyph = "r"
+hit_points = 2
+damage = 1
+first_floor = 1
+
+[[monsters]]
+name = "goblin"
+glyph = "g"
+hit_points = 4
+damage = 2
+first_floor = 2
+
+[[monsters]]
+name = "orc"
+glyph = "o"
+hit_points = 7
+damage = 3
+first_floor = 4
