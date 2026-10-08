@@ -4,7 +4,7 @@ import pytest
 from helpers import game_on, level_from
 
 from dungeon_explorer.game import Game
-from dungeon_explorer.generate import ITEMS
+from dungeon_explorer.generate import ITEMS, floor_count
 from dungeon_explorer.level import Item, Tile
 from dungeon_explorer.render import PLAYER, STAIRS_DOWN, draw_mini_map, draw_view
 from dungeon_explorer.states import (
@@ -38,7 +38,7 @@ def test_playing_draws_a_header_the_panels_with_a_legend_and_the_log():
     view, mini_map = draw_view(game), draw_mini_map(game)
     menu = "i inventory  l log  c clear  ? help  q quit"
     assert lines[0] == "DUNGEON EXPLORER" + " " * 9 + menu
-    assert lines[1] == "Level 1   Seed 42"
+    assert lines[1] == f"Level 1 of {floor_count(42)}   Seed 42"
     assert lines[2] == "+- View " + "-" * 24 + "+ +- Map " + "-" * 26 + "+"
     key = ["Key", "@ you", "# wall", ". floor", "> stairs"]
     key += ["! potion", "$ gold", "? scroll", ") dagger"]

@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from typing import Self
 
-from dungeon_explorer.generate import generate_level
+from dungeon_explorer.generate import floor_count, generate_level
 from dungeon_explorer.level import Direction, Item, Level, Point, Tile
 
 
@@ -35,6 +35,7 @@ class Game:
 
     `explored` holds every tile of this level the player has seen, and `log`
     holds every message of the game, oldest first, for showing to the player.
+    `finished` turns true when the player goes down the last floor's stairs.
     """
 
     seed: int
@@ -43,9 +44,15 @@ class Game:
     depth: int = 1
     explored: set[Point] = field(default_factory=set)
     log: list[Message] = field(default_factory=list)
+    finished: bool = False
 
     def __post_init__(self) -> None:
         self._explore()
+
+    @property
+    def floors(self) -> int:
+        """How many floors this game's dungeon has, set by its seed."""
+        return floor_count(self.seed)
 
     @classmethod
     def new(cls, seed: int) -> Self:
@@ -70,10 +77,15 @@ class Game:
         """Go down to the next level, if the player is standing on the stairs.
 
         The new level comes from the same seed, so it's the same whatever
-        happened on the levels above. The player keeps their inventory.
+        happened on the levels above. The player keeps their inventory. The
+        last floor's stairs lead out of the dungeon, which finishes the game.
         """
         if self.player.position != self.level.stairs_down:
             self.say("There are no stairs down here.")
+            return
+        if self.depth == self.floors:
+            self.finished = True
+            self.say("You go down the last stairs and out of the dungeon.")
             return
         self.depth += 1
         self.level = generate_level(self.seed, self.depth)
@@ -81,6 +93,8 @@ class Game:
         self.explored = set()
         self._explore()
         self.say(f"You go down the stairs to level {self.depth}.")
+        if self.depth == self.floors:
+            self.say("This is the last floor: its stairs lead out of the dungeon.")
 
     def say(self, text: str) -> None:
         """Add `text` to the log, counting it again if it's the same as the last."""

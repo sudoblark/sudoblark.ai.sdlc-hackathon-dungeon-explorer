@@ -82,7 +82,7 @@ class PlayingState(_InGameState):
         newest = [str(message) for message in game.log[-LOG_LINES:]]
         return [
             TITLE + MENU.rjust(width - len(TITLE)),
-            f"Level {game.depth}   Seed {game.seed}",
+            f"Level {game.depth} of {game.floors}   Seed {game.seed}",
             *beside,
             *[""] * (LOG_LINES - len(newest)),
             *newest,

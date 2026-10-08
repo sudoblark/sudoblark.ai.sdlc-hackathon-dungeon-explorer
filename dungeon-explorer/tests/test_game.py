@@ -2,7 +2,7 @@ import pytest
 from helpers import game_on, level_from
 
 from dungeon_explorer.game import Game, Message
-from dungeon_explorer.generate import generate_level
+from dungeon_explorer.generate import floor_count, generate_level
 from dungeon_explorer.level import Direction, Item, Point, Room
 
 POTION = Item("potion", "!")
@@ -337,3 +337,48 @@ def test_the_log_carries_on_down_the_stairs():
         "A wall is in the way.",
         "You go down the stairs to level 2.",
     ]
+
+
+def _down_to(depth: int, seed: int) -> Game:
+    """A new game for `seed`, taken down the stairs to `depth`."""
+    game = Game.new(seed)
+    while game.depth < depth:
+        game.player.position = game.level.stairs_down
+        game.descend()
+    return game
+
+
+def test_a_game_has_as_many_floors_as_its_seed_gives():
+    assert Game.new(seed=42).floors == floor_count(42)
+
+
+def test_arriving_on_the_last_floor_says_its_stairs_lead_out():
+    # Seed 1's dungeon has three floors.
+    game = _down_to(3, seed=1)
+
+    assert [str(message) for message in game.log] == [
+        "You go down the stairs to level 2.",
+        "You go down the stairs to level 3.",
+        "This is the last floor: its stairs lead out of the dungeon.",
+    ]
+    assert not game.finished
+
+
+def test_going_down_the_last_floors_stairs_finishes_the_game():
+    game = _down_to(3, seed=1)
+    level = game.level
+    game.player.position = level.stairs_down
+
+    game.descend()
+
+    assert game.finished
+    assert game.depth == 3
+    assert game.level is level
+    assert str(game.log[-1]) == "You go down the last stairs and out of the dungeon."
+
+
+def test_the_game_isnt_finished_until_the_last_floor():
+    game = _down_to(2, seed=1)
+
+    assert not game.finished
+    assert "This is the last floor" not in str(game.log[-1])

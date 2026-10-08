@@ -6,7 +6,10 @@ import pytest
 from dungeon_explorer.generate import (
     ITEMS,
     ITEMS_PER_LEVEL,
+    MAX_FLOORS,
+    MIN_FLOORS,
     _join_rooms,
+    floor_count,
     generate_level,
 )
 from dungeon_explorer.level import Item, Level, Point, Room, Tile
@@ -300,3 +303,16 @@ def test_different_seeds_give_different_levels():
 
 def test_different_depths_give_different_levels():
     assert generate_level(42, depth=1) != generate_level(42, depth=2)
+
+
+def test_each_dungeon_has_between_the_fewest_and_most_floors():
+    counts = {floor_count(seed) for seed in range(200)}
+
+    assert counts <= set(range(MIN_FLOORS, MAX_FLOORS + 1))
+    # Seeds vary the count, rather than all getting the same number.
+    assert len(counts) > 1
+
+
+def test_the_same_seed_always_has_the_same_number_of_floors():
+    assert floor_count(42) == floor_count(42) == 7
+    assert floor_count(1) == 3

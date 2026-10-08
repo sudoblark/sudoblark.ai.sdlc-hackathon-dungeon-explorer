@@ -5,6 +5,9 @@ import random
 
 from dungeon_explorer.level import Item, Level, Point, Room, Tile
 
+# Each seed's dungeon has between these many floors.
+MIN_FLOORS = 3
+MAX_FLOORS = 7
 LEVEL_WIDTH = 64
 LEVEL_HEIGHT = 32
 MAX_ROOMS = 9
@@ -26,6 +29,13 @@ ITEMS_PER_LEVEL = (3, 6)
 
 # One tile north, east, south and west.
 STEPS: tuple[Point, ...] = ((0, -1), (1, 0), (0, 1), (-1, 0))
+
+
+def floor_count(seed: int) -> int:
+    """How many floors the dungeon for `seed` has. The same seed always gives
+    the same number."""
+    # Its own seed string, so the count doesn't depend on any level.
+    return random.Random(f"{seed}:floors").randint(MIN_FLOORS, MAX_FLOORS)
 
 
 def generate_level(seed: int, depth: int) -> Level:
