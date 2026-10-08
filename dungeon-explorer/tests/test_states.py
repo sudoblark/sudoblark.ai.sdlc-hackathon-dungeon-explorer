@@ -94,7 +94,7 @@ def test_the_inventory_lists_what_the_player_carries_in_order():
         "  ! potion",
         "  $ gold",
         "",
-        "Press Enter to go back.",
+        "Press any key to go back.",
     ]
 
 
@@ -106,7 +106,7 @@ def test_the_inventory_says_when_it_is_empty():
         "",
         "  You aren't carrying anything yet.",
         "",
-        "Press Enter to go back.",
+        "Press any key to go back.",
     ]
 
 

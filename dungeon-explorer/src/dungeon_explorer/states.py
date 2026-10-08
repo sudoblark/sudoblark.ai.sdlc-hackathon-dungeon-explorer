@@ -11,7 +11,7 @@ from dungeon_explorer.commands import parse_command
 from dungeon_explorer.game import Game
 from dungeon_explorer.render import draw_mini_map, draw_view
 
-BACK = "Press Enter to go back."
+BACK = "Press any key to go back."
 
 
 class State(ABC):
@@ -86,7 +86,7 @@ class HelpState(State):
             "  ?         show this help",
             "  q         quit",
             "",
-            "Type a key and press Enter. Walk onto an item to pick it up.",
+            "Each key acts as soon as you press it. Walk onto an item to pick it up.",
             BACK,
         ]
 

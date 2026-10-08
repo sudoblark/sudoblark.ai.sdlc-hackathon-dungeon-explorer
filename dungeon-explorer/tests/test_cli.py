@@ -5,7 +5,7 @@ import pytest
 from helpers import game_on, level_from
 
 from dungeon_explorer import cli
-from dungeon_explorer.cli import CLEAR_SCREEN, game_loop, main
+from dungeon_explorer.cli import CLEAR_SCREEN, _key_from, game_loop, main
 from dungeon_explorer.game import Game
 from dungeon_explorer.states import InventoryState, PlayingState
 
@@ -114,3 +114,60 @@ def test_a_seed_must_be_a_whole_number(capsys):
 
     assert error.value.code == 2
     assert "invalid int value: 'dragon'" in capsys.readouterr().err
+
+
+class _Stdin:
+    """Stands in for sys.stdin, saying whether it's a terminal."""
+
+    def __init__(self, terminal: bool) -> None:
+        self.terminal = terminal
+
+    def isatty(self) -> bool:
+        return self.terminal
+
+
+def _refuse(prompt: str) -> str:
+    raise AssertionError("read input the wrong way")
+
+
+def test_in_a_terminal_the_command_reads_single_keys(monkeypatch, capsys):
+    monkeypatch.setattr(cli.sys, "stdin", _Stdin(terminal=True))
+    monkeypatch.setattr(cli, "read_key", _script("d", "q"))
+    monkeypatch.setattr("builtins.input", _refuse)
+
+    assert main(["--seed", "42"]) == 0
+    assert "Goodbye! You reached level 1 of seed 42." in capsys.readouterr().out
+
+
+def test_piped_input_is_read_a_line_at_a_time(monkeypatch, capsys):
+    monkeypatch.setattr(cli.sys, "stdin", _Stdin(terminal=False))
+    monkeypatch.setattr(cli, "read_key", _refuse)
+    monkeypatch.setattr("builtins.input", _script("d", "q"))
+
+    assert main(["--seed", "42"]) == 0
+    assert "Goodbye! You reached level 1 of seed 42." in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    ("raw", "key"),
+    [
+        ("w", "w"),
+        (">", ">"),
+        ("\n", "\n"),  # Enter, which the screens treat as an empty line
+        ("\x1b[A", ""),  # the up arrow's escape sequence
+        ("\x1b", ""),  # Escape on its own
+    ],
+)
+def test_keys_come_back_as_pressed_and_escapes_are_ignored(raw, key):
+    assert _key_from(raw) == key
+
+
+def test_ctrl_c_interrupts_as_it_does_at_a_prompt():
+    with pytest.raises(KeyboardInterrupt):
+        _key_from("\x03")
+
+
+@pytest.mark.parametrize("raw", ["\x04", ""])
+def test_ctrl_d_or_a_closed_terminal_ends_the_input(raw):
+    with pytest.raises(EOFError):
+        _key_from(raw)

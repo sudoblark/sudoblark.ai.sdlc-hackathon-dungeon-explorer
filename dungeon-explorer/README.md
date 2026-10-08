@@ -18,7 +18,7 @@ Start a game from this folder. Pass a seed to play a particular dungeon, or leav
 uv run dungeon-explorer --seed 42
 ```
 
-Type a key and press Enter:
+Press a key; there's no need to press Enter:
 
 | Key | What it does |
 | --- | --- |
