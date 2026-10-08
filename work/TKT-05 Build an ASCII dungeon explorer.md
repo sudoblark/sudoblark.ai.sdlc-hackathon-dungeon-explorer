@@ -49,27 +49,63 @@ A turn-based dungeon explorer drawn in ASCII in the terminal. Each level is gene
 | 13 | `feat(states): add the playing, inventory and help screens (TKT-05)` | The State pattern: each state draws its screen and handles a line of input, returning the next state, or nothing to quit. Playing draws the view and mini-map from `render`, with the depth, the seed and the last message, and runs commands. From Playing, `i` opens the inventory, `?` the help, and `q` quits. Any input on the inventory or help screen goes back to playing. Tests: every transition, and what each screen draws. | ✅ |
 | 14 | `feat(cli): run the game loop in the terminal (TKT-05)` | The Game Loop: draw the current state, read a line, hand it over, and stop when there's no next state. It's started with `dungeon-explorer --seed N`; without a seed it picks one and shows it. Adds a "How to play" section to the README. Tests drive the loop with scripted input and check what it prints. | ✅ |
 
+### Stretch goals
+
+Rows 15 to 27 are stretch goals, added once every acceptance criterion was met.
+
+| # | Commit message | What it covers | Status |
+| --- | --- | --- | --- |
+| 15 | `feat(cli): read single keypresses in a terminal (TKT-05)` | In a terminal, each key acts as soon as it's pressed: `tty.setcbreak` on macOS and Linux, so Ctrl-C still quits, and `msvcrt.getwch` on Windows. When input is piped, the loop still reads lines, so scripted runs and check 3 keep working. "Press Enter" becomes "Press any key". Tests: piped input still drives the loop; the key reader only reads raw keys from a terminal. The raw path is checked by hand. | |
+| 16 | `refactor(states): give each state the game it shows (TKT-05)` | States hold their own game instead of the loop passing one in, so a title screen can start new games and leave finished ones behind. No change in behaviour; the existing tests move to the new shape. | |
+| 17 | `feat(states): add a header and legend to the playing screen (TKT-05)` | The game's title at the top of the playing screen, and a key to every symbol, all within 80 columns. The layout is signed off at this commit. Tests: the exact header and legend lines, and the width. | |
+| 18 | `feat(game): end the dungeon after its last floor (TKT-05)` | A fixed number of floors, shown as `Level 2 of 5`. Going down the stairs on the last floor finishes the game instead of generating another level. The number of floors is signed off at this commit. Tests: reaching the last floor, finishing from it, and the status line. | |
+| 19 | `feat(states): show a win screen when the dungeon is finished (TKT-05)` | A win screen saying how deep the player went and what they carried out. Any key ends the game until row 20 sends it to the title screen. Tests: the transition and what it draws. | |
+| 20 | `feat(states): add a title screen with new game and exit (TKT-05)` | The game opens on a title screen with New Game and Exit. New Game uses `--seed` if it was given, otherwise a random seed. Finishing goes back to the title. The keys, and whether `q` while playing quits or goes to the title, are signed off at this commit. Tests: every transition, and the seed each new game gets. | |
+| 21 | `feat(generate): place monsters and show the ones in sight (TKT-05)` | A few seeded monsters on each level, kept out of the start room, drawn only when the player has a clear line of sight to them. Monster kinds and how they're modelled are signed off at this commit. Tests: the placement rules, line of sight through floor and blocked by walls, the drawing, and seed 42's monsters pinned. | |
+| 22 | `feat(game): monsters chase the player they can see (TKT-05)` | After each turn, each monster that can see the player steps one tile towards them, never into a wall, another monster or the player. Tests: chasing, staying put out of sight, and being blocked. | |
+| 23 | `feat(game): attack a monster by walking into it (TKT-05)` | Walking into a monster hits it instead of moving. Monsters have hit points and are removed at zero, with messages. Whether damage is fixed or rolled from the seed is signed off at this commit. Tests: hitting, killing and the messages. | |
+| 24 | `feat(game): monsters hit back and hit points run out (TKT-05)` | The player has hit points, shown on the status line, and a monster next to the player at the end of a turn hits them. Tests: taking damage, the status line, and hit points stopping at zero. | |
+| 25 | `feat(states): show a game over screen at zero hit points (TKT-05)` | At zero hit points the game shows a game over screen, and any key goes back to the title. Tests: the transition and what it draws. | |
+| 26 | `feat(settings): read the game's settings from a TOML file (TKT-05)` | The level size, rooms, items, monsters, floors and view size come from a TOML file read with `tomllib`, with today's values as the defaults. The format and the file's location are signed off at this commit. Tests: the defaults, overriding a setting, and rejecting bad values. | |
+| 27 | `feat(settings): show which settings a seed was played with (TKT-05)` | A short fingerprint of the settings beside the seed, on screen and in the goodbye line, so a replay can tell it has the same settings. Tests: the same settings give the same fingerprint, and any change gives a different one. | |
+
 ## Post-commit testing
 
 | # | Check | How | Status |
 | --- | --- | --- | --- |
 | 1 | The checks pass on the finished project | In `dungeon-explorer/`, run `uv run pytest`, `uv run ruff check` and `uv run ruff format --check`. All three pass. | ✅ |
-| 2 | It runs from a fresh clone by following the README | Clone the branch into a temporary folder and follow the README's steps through to `uv run dungeon-explorer --seed 42`. The first screen draws with no errors. | |
-| 3 | The same seed always draws the same dungeon | Run `printf 'q\n' \| uv run dungeon-explorer --seed 42` twice and diff the two outputs: they match. With `--seed 43`, the output differs. | |
-| 4 | Walls block movement | Play with `--seed 42` and walk into a wall. The `@` doesn't move, and the message says a wall is in the way. | |
-| 5 | Picked-up items appear in the inventory | Walk onto an item and see the pick-up message, then enter `i`: the inventory screen lists the item, and any input goes back to the game. | |
+| 2 | It runs from a fresh clone by following the README | Clone the branch into a temporary folder and follow the README's steps through to `uv run dungeon-explorer --seed 42`. The first screen draws with no errors. | ✅ |
+| 3 | The same seed always draws the same dungeon | Run `printf 'q\n' \| uv run dungeon-explorer --seed 42` twice and diff the two outputs: they match. With `--seed 43`, the output differs. | ✅ |
+| 4 | Walls block movement | Play with `--seed 42` and walk into a wall. The `@` doesn't move, and the message says a wall is in the way. | ✅ |
+| 5 | Picked-up items appear in the inventory | Walk onto an item and see the pick-up message, then enter `i`: the inventory screen lists the item, and any input goes back to the game. | ✅ |
 | 6 | The stairs lead down | `>` away from the stairs is refused. On the stairs, it draws level 2, the depth shows 2 and the inventory is unchanged. Replaying the same seed gives the same level 2. | ✅ |
-| 7 | The mini-map shows only the explored parts | At the start, the mini-map shows only the start room. Walking a corridor fills it in behind the player, and the unexplored parts stay blank. | |
+| 7 | The mini-map shows only the explored parts | At the start, the mini-map shows only the start room. Walking a corridor fills it in behind the player, and the unexplored parts stay blank. | ✅ |
+
+### Stretch goals
+
+Checks 8 to 16 test the stretch goals, once rows 15 to 27 have landed.
+
+| # | Check | How | Status |
+| --- | --- | --- | --- |
+| 8 | Keys act without Enter in a terminal | Run `uv run dungeon-explorer --seed 42` in a terminal. `w` `a` `s` `d` move straight away, `i` and `?` open their screens, any key goes back, and Ctrl-C quits cleanly. Piped input, as in check 3, still works. | |
+| 9 | The playing screen has a header and legend | The title shows at the top, every symbol on screen is in the legend, and the screen fits an 80-column terminal. | |
+| 10 | The title screen starts and exits games | The game opens on the title. New Game starts a game, and Exit quits. With `--seed 42`, the new game is seed 42. | |
+| 11 | The dungeon can be finished | The status shows `Level 1 of 5`. Going down the stairs on the last floor shows the win screen, then the title. | |
+| 12 | Monsters appear and chase | Monsters only show when they're in sight, and step towards the player when they can see them. Out of sight, they stay put. | |
+| 13 | Monsters can be fought | Walking into a monster hits it, and enough hits kill it. | |
+| 14 | Monsters hurt back, and the game can be lost | Standing next to a monster costs hit points, shown on the status line. At zero, the game over screen shows, then the title. | |
+| 15 | Settings change the game | Changing a setting in the TOML file, such as fewer floors or a smaller level, changes the game, and the fingerprint beside the seed changes with it. | |
+| 16 | The original checks still hold | Re-run checks 1 to 3 on the finished stretch goals, with input that starts a game from the title screen first. | |
 
 ## Acceptance criteria
 
-- [ ] The person signed off the language, the tooling and the folder name
-- [ ] The person signed off the commit plan
-- [ ] Each level is generated from a seed, with rooms joined by corridors, items to pick up, and stairs down to the next level
-- [ ] The same seed always generates the same dungeon
-- [ ] The player moves one step per command, and can't walk through walls
-- [ ] Items picked up go into an inventory, which the player can list
-- [ ] A mini-map shows the parts of the level the player has explored
+- [x] The person signed off the language, the tooling and the folder name
+- [x] The person signed off the commit plan
+- [x] Each level is generated from a seed, with rooms joined by corridors, items to pick up, and stairs down to the next level
+- [x] The same seed always generates the same dungeon
+- [x] The player moves one step per command, and can't walk through walls
+- [x] Items picked up go into an inventory, which the player can list
+- [x] A mini-map shows the parts of the level the player has explored
 
 ## Stretch goals
 
@@ -87,3 +123,5 @@ The person added these after play-testing:
 - A title screen with New Game and Exit, as a new state that comes before playing.
 - A fixed number of floors, with the total in the legend (`Level 2 of 5`) and a way to finish on the last one. At the moment the dungeon goes on forever, so there's nothing to complete.
 - Saving and loading from a menu. Levels regenerate from the seed, so a save only needs the seed, the depth, the player's position and inventory, the explored tiles, and which items have been picked up on the current level.
+
+The person chose every stretch goal except saving and loading, planned as rows 15 to 27, with checks 8 to 16.
