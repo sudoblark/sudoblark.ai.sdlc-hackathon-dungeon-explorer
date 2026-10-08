@@ -13,7 +13,8 @@ import os
 import random
 import shutil
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
 
 from dungeon_explorer.settings import load_settings, load_settings_code
@@ -23,6 +24,9 @@ PROMPT = "> "
 # ANSI codes to clear the terminal and move to its top left, so each turn
 # redraws the screen in place.
 CLEAR_SCREEN = "\033[2J\033[H"
+# ANSI codes to hide the terminal's blinking cursor, and to show it again.
+HIDE_CURSOR = "\033[?25l"
+SHOW_CURSOR = "\033[?25h"
 # Seeds picked for you stay short enough to type back in.
 RANDOM_SEEDS = 1_000_000
 # Read from the folder the game runs in, unless --settings names another file.
@@ -110,16 +114,35 @@ def main(argv: list[str] | None = None) -> int:
         settings=settings,
         warnings=tuple(warnings),
     )
+    read = read_key if sys.stdin.isatty() else input
+    # Only a terminal is cleared, centred and has its cursor hidden: piped
+    # output stays as drawn.
+    terminal = sys.stdout.isatty()
+    size = shutil.get_terminal_size if terminal else None
     try:
-        read = read_key if sys.stdin.isatty() else input
-        # Only a terminal is cleared and centred: piped output stays as drawn.
-        terminal = sys.stdout.isatty()
-        size = shutil.get_terminal_size if terminal else None
-        game_loop(title, read, print, clear=terminal, terminal_size=size)
+        with cursor_hidden(_write_code) if terminal else nullcontext():
+            game_loop(title, read, print, clear=terminal, terminal_size=size)
     except KeyboardInterrupt:
         print()
         return 130
     return 0
+
+
+@contextmanager
+def cursor_hidden(write: Callable[[str], None]) -> Iterator[None]:
+    """Hide the terminal's cursor inside the `with`, and always show it again,
+    whether the game ends normally, by Ctrl-C or with an error, so the terminal
+    is never left without one."""
+    write(HIDE_CURSOR)
+    try:
+        yield
+    finally:
+        write(SHOW_CURSOR)
+
+
+def _write_code(code: str) -> None:
+    """Send a terminal code straight away, without a newline."""
+    print(code, end="", flush=True)
 
 
 def read_key(prompt: str = "") -> str:

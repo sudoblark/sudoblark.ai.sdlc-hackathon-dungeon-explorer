@@ -5,7 +5,16 @@ import pytest
 from helpers import game_on, level_from
 
 from dungeon_explorer import cli
-from dungeon_explorer.cli import CLEAR_SCREEN, _key_from, centre, game_loop, main
+from dungeon_explorer.cli import (
+    CLEAR_SCREEN,
+    HIDE_CURSOR,
+    SHOW_CURSOR,
+    _key_from,
+    centre,
+    cursor_hidden,
+    game_loop,
+    main,
+)
 from dungeon_explorer.game import Game
 from dungeon_explorer.generate import floor_count
 from dungeon_explorer.level import Monster
@@ -383,3 +392,60 @@ def test_without_a_terminal_the_screens_are_drawn_as_they_are():
     game_loop(PlayingState(game), _script(), drawn.append)
 
     assert drawn[0] == "\n".join(PlayingState(game).draw())
+
+
+def test_the_cursor_is_hidden_inside_and_shown_again_after():
+    written: list[str] = []
+
+    with cursor_hidden(written.append):
+        assert written == [HIDE_CURSOR]
+
+    assert written == [HIDE_CURSOR, SHOW_CURSOR]
+
+
+@pytest.mark.parametrize("error", [KeyboardInterrupt, RuntimeError])
+def test_the_cursor_comes_back_even_when_the_game_is_interrupted(error):
+    written: list[str] = []
+
+    with pytest.raises(error), cursor_hidden(written.append):
+        raise error
+
+    assert written == [HIDE_CURSOR, SHOW_CURSOR]
+
+
+def _in_a_terminal(monkeypatch) -> None:
+    """Make main think it's playing in a terminal 100 by 40."""
+    monkeypatch.setattr(cli.sys.stdout, "isatty", lambda: True)
+    monkeypatch.setattr(cli.sys, "stdin", _Stdin(terminal=True))
+    monkeypatch.setattr(cli.shutil, "get_terminal_size", lambda: _size(100, 40))
+
+
+def test_in_a_terminal_the_cursor_is_hidden_for_the_whole_game(monkeypatch, capsys):
+    _in_a_terminal(monkeypatch)
+    monkeypatch.setattr(cli, "read_key", _script(*EXIT))
+
+    assert main(["--seed", "42"]) == 0
+
+    out = capsys.readouterr().out
+    assert out.startswith(HIDE_CURSOR)
+    assert out.endswith(SHOW_CURSOR)
+    assert out.count(HIDE_CURSOR) == out.count(SHOW_CURSOR) == 1
+
+
+def test_after_ctrl_c_the_cursor_is_shown_again(monkeypatch, capsys):
+    _in_a_terminal(monkeypatch)
+
+    def ctrl_c(prompt: str) -> str:
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(cli, "read_key", ctrl_c)
+
+    assert main(["--seed", "42"]) == 130
+    assert SHOW_CURSOR in capsys.readouterr().out
+
+
+def test_piped_output_never_hides_the_cursor(monkeypatch, capsys):
+    _, out = _play(monkeypatch, capsys, ["--seed", "42"], *EXIT)
+
+    assert HIDE_CURSOR not in out
+    assert SHOW_CURSOR not in out
