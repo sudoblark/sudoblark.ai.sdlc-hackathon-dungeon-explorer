@@ -52,7 +52,7 @@ A turn-based dungeon explorer drawn in ASCII in the terminal. Each level is gene
 
 ### Stretch goals
 
-Rows 15 to 35 are stretch goals, added once every acceptance criterion was met.
+Rows 15 to 36 are stretch goals, added once every acceptance criterion was met.
 
 | # | Commit message | What it covers | Status |
 | --- | --- | --- | --- |
@@ -76,7 +76,8 @@ Rows 15 to 35 are stretch goals, added once every acceptance criterion was met.
 | 32 | `feat(cli): centre the screen in the terminal (TKT-05)` | In a terminal, every screen is drawn in the middle, as one block so its lines stay lined up, across and down. The terminal is measured each turn, so resizing it re-centres the screen, and a screen bigger than the terminal stays in the top left. Piped output isn't padded, so scripted runs and the tests are unchanged. The person asked for this while play-testing, before the ticket closed. Tests: centring in a bigger terminal, lines staying lined up, blank lines staying empty, a screen too big to centre, and the loop centring only when given a terminal size. | ✅ |
 | 33 | `feat(cli): hide the cursor while playing (TKT-05)` | In a terminal, the blinking cursor is hidden while the game runs, and always shown again when it ends, including after Ctrl-C or an error, so the terminal is never left without one. The person asked for this after play-testing row 32. Tests: hidden at the start and shown at the end, shown again after an interruption or an error, and left alone when output is piped. | ✅ |
 | 34 | `feat(states): frame the playing screen in labelled panels (TKT-05)` | The playing screen sits inside one outer edge: a banner with the title on its own at the top, the status line, then View, Map and Key panels sharing their borders, a Messages panel, and a menu bar at the bottom, 77 columns wide and 28 tall. The person chose this full grid over fitting the title and menu into the edge to keep within 24 rows, so the title stands apart from the game. Tests: the exact layout, every panel labelled, the width within 80 columns, and the panels following the view size and number of log lines in the settings. | ✅ |
-| 35 | `feat(states): frame the other screens to match (TKT-05)` | The new game (seed), items, help, log, leave, win and game over screens get the same edge: the title banner, a panel labelled with the screen's name, and a bar at the bottom for their keys. The title screen stays as it is, which the person likes. The screens of a game are padded to the playing screen's exact size, so the edge doesn't move as the player switches between them, and a replay code goes below the edge so it's never cut short. Tests: each screen inside the edge with its label, its contents unchanged, and in-game screens the same size as the playing screen. | |
+| 35 | `feat(states): frame the other screens to match (TKT-05)` | The new game (seed), items, help, log, leave, win and game over screens get the same edge: the title banner, a panel labelled with the screen's name, and a bar at the bottom for their keys. The title screen stays as it is, which the person likes. The screens of a game are padded to the playing screen's exact size, so the edge doesn't move as the player switches between them, and a replay code goes below the edge so it's never cut short. Tests: each screen inside the edge with its label, its contents unchanged, and in-game screens the same size as the playing screen. | ✅ |
+| 36 | `feat(states): make every screen the same size (TKT-05)` | Every screen, the title and new game screens included, is the same size as the playing screen, worked out from the settings alone so screens without a game match too, and never smaller than the default 77 by 28. The title screen keeps its look, centred as a block inside the same edge. The log screen shows as many messages as fit, and anything too long for a screen is cut short with a note of how much more there is, so no screen grows. The person asked for this after row 35, which only matched the screens of a game. Tests: every screen the same size under several settings, the title's look kept, the log page fitting, and too much content cut short. | |
 
 ## Post-commit testing
 
@@ -92,7 +93,7 @@ Rows 15 to 35 are stretch goals, added once every acceptance criterion was met.
 
 ### Stretch goals
 
-Checks 8 to 22 test the stretch goals, once rows 15 to 35 have landed.
+Checks 8 to 22 test the stretch goals, once rows 15 to 36 have landed.
 
 | # | Check | How | Status |
 | --- | --- | --- | --- |
@@ -110,7 +111,7 @@ Checks 8 to 22 test the stretch goals, once rows 15 to 35 have landed.
 | 19 | The screen sits in the middle of the terminal | Play in a terminal bigger than the game: every screen, from the title to the win or game over screen, sits in the middle, across and down, with its lines still lined up. Resizing the terminal re-centres it on the next key. Piped output, as in check 3, is unchanged. | ✅ |
 | 20 | The cursor is hidden while playing | In a terminal, no cursor blinks anywhere during the game. After quitting, after Ctrl-C, and after leaving from the title, the shell's cursor is back. | |
 | 21 | The playing screen is framed in labelled panels | The title has its own banner, separate from the game; View, Map, Key and Messages are each labelled; the menu sits in a bar at the bottom, all inside one edge. | |
-| 22 | The other screens match | The new game, items, help, log, leave, win and game over screens each sit in the same edge with the title banner and their own label; the title screen is unchanged. | |
+| 22 | The other screens match | The new game, items, help, log, leave, win and game over screens each sit in the same edge with the title banner and their own label. Every screen, the title included, is exactly the same size as the playing screen, so the edge never moves; the title screen keeps its look inside it. | |
 
 ## Acceptance criteria
 
@@ -140,4 +141,4 @@ The person added these after play-testing:
 - Saving and loading from a menu. Levels regenerate from the seed, so a save only needs the seed, the depth, the player's position and inventory, the explored tiles, and which items have been picked up on the current level.
 - A log that keeps past messages instead of replacing them, with a key to clear it. The person added this while trying row 15.
 
-The person chose every stretch goal except saving and loading, planned as rows 15 to 31, with checks 8 to 18. Rows 32 to 35 and checks 19 to 22, centring the screen, hiding the cursor and framing the screens, came from play-testing.
+The person chose every stretch goal except saving and loading, planned as rows 15 to 31, with checks 8 to 18. Rows 32 to 36 and checks 19 to 22, centring the screen, hiding the cursor and framing the screens, came from play-testing.

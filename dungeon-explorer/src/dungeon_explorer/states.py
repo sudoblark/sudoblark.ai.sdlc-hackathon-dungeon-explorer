@@ -17,7 +17,13 @@ from dataclasses import dataclass
 from dungeon_explorer.commands import parse_command
 from dungeon_explorer.game import PLAYER_HIT_POINTS, Game
 from dungeon_explorer.level import Tile
-from dungeon_explorer.render import PLAYER, STAIRS_DOWN, draw_mini_map, draw_view
+from dungeon_explorer.render import (
+    MINI_MAP_SCALE,
+    PLAYER,
+    STAIRS_DOWN,
+    draw_mini_map,
+    draw_view,
+)
 from dungeon_explorer.settings import DEFAULT_SETTINGS, Settings
 
 BACK = "Press any key to go back."
@@ -33,11 +39,12 @@ ENTER = ("", "\n", "\r")
 BACKSPACE = ("\x7f", "\b")
 # Long enough for any seed you'd want to type, short enough to show.
 SEED_DIGITS = 9
-# How wide screens are inside their edge before there's a game to match:
-# the playing screen's width with the default settings.
-FRAME_WIDTH = 75
-# How many messages the log screen shows at once.
-LOG_PAGE = 20
+# Every screen is at least this wide inside its edge: the playing screen's
+# width with the default settings, which every screen's text fits.
+MIN_FRAME_WIDTH = 75
+# A banner, a labelled edge, a blank line above and below a panel's text, and
+# a bar for its keys between two edges take 9 lines of every framed screen.
+FRAME_LINES = 9
 
 
 class State(ABC):
@@ -75,6 +82,7 @@ class TitleState(State):
     OPTIONS = ("New game", "Exit")
 
     def draw(self) -> list[str]:
+        size = _size(self.settings)
         options = [
             f"  > {option} <" if row == self.choice else f"    {option}"
             for row, option in enumerate(self.OPTIONS)
@@ -91,16 +99,14 @@ class TitleState(State):
         if self.warnings:
             lines += ["", "Problems with the settings file:"]
             for warning in self.warnings:
-                # Never split a file path, which can be longer than the screen.
                 lines += textwrap.wrap(
                     warning,
-                    width=76,
+                    width=size.width - 2,
                     initial_indent="  ",
                     subsequent_indent="    ",
                     break_on_hyphens=False,
-                    break_long_words=False,
                 )
-        return lines
+        return _boxed(lines, size)
 
     def handle(self, text: str) -> State | None:
         key = text.strip().lower()
@@ -132,7 +138,8 @@ class SeedState(State):
             "",
             f"  Seed: {self.digits}_",
         ]
-        return _framed("New game", body, "Enter to start   q to go back", FRAME_WIDTH)
+        keys = "Enter to start   q to go back"
+        return _framed("New game", body, keys, _size(self.title.settings))
 
     def handle(self, text: str) -> State | None:
         if text in ENTER:
@@ -166,10 +173,9 @@ class _InGameState(State):
     def _framed(
         self, label: str, body: list[str], keys: str, after: list[str] | None = None
     ) -> list[str]:
-        """This screen framed to the playing screen's size, so the edge stays
+        """This screen framed the same size as every other, so the edge stays
         exactly where it is as the player moves between them."""
-        playing = PlayingState(self.game, self.title).draw()
-        return _framed(label, body, keys, len(playing[0]) - 2, after, len(playing))
+        return _framed(label, body, keys, _size(self.game.settings), after)
 
 
 class PlayingState(_InGameState):
@@ -178,24 +184,18 @@ class PlayingState(_InGameState):
 
     def draw(self) -> list[str]:
         game = self.game
+        size = _size(game.settings)
+        width = size.width
         view, mini_map = draw_view(game), draw_mini_map(game)
         key = [f" {glyph} {name}" for glyph, name in legend(game.settings)]
-        height = max(len(view), len(mini_map), len(key))
-        status = (
-            f"Level {game.depth} of {game.floors}   Seed {game.seed}"
-            f" (settings {game.settings.fingerprint})"
-        )
+        status = _status(game.depth, game.floors, game.seed, game.settings)
         hit_points = f"HP {game.player.hit_points}/{PLAYER_HIT_POINTS}"
-        # The Key panel takes any width the panels lack, so the status line,
-        # the menu and the banner always fit inside the edge.
-        key_width = max(len(line) for line in key) + 1
-        needed = max(len(status) + len(hit_points) + 5, len(MENU) + 2, len(BANNER) + 2)
-        key_width = max(key_width, needed - len(view[0]) - len(mini_map[0]) - 2)
-        width = len(view[0]) + 1 + len(mini_map[0]) + 1 + key_width
+        # Cut the status short rather than lose the hit points off the end.
+        status = status[: width - len(hit_points) - 3]
         columns = [
-            _pad(view, len(view[0]), height),
-            _pad(mini_map, len(mini_map[0]), height),
-            _pad(key, key_width, height),
+            _pad(view, len(view[0]), size.panel_height),
+            _pad(mini_map, len(mini_map[0]), size.panel_height),
+            _pad(key, size.key_width, size.panel_height),
         ]
         log_lines = game.settings.log_lines
         newest = [str(message) for message in game.log[-log_lines:]]
@@ -205,7 +205,11 @@ class PlayingState(_InGameState):
             *_banner(width),
             _row(status + hit_points.rjust(width - len(status) - 2), width),
             _labelled_edge(
-                [("View", len(view[0])), ("Map", len(mini_map[0])), ("Key", key_width)]
+                [
+                    ("View", len(view[0])),
+                    ("Map", len(mini_map[0])),
+                    ("Key", size.key_width),
+                ]
             ),
             *("|" + "|".join(parts) + "|" for parts in zip(*columns, strict=True)),
             _labelled_edge([("Messages", width)]),
@@ -345,12 +349,16 @@ class LogState(_InGameState):
 
     scroll: int = 0
 
+    def _page(self) -> int:
+        """How many messages fit in the panel at once."""
+        return _size(self.game.settings).height - FRAME_LINES
+
     def draw(self) -> list[str]:
         log = self.game.log
         if not log:
             return self._framed("Message log", ["  No messages yet."], BACK)
         end = len(log) - self.scroll
-        start = max(0, end - LOG_PAGE)
+        start = max(0, end - self._page())
         label = f"Message log   {start + 1}-{end} of {len(log)}"
         body = [f"  {message}" for message in log[start:end]]
         keys = "w older   s newer   any other key to go back"
@@ -359,12 +367,61 @@ class LogState(_InGameState):
     def handle(self, text: str) -> State | None:
         key = text.strip().lower()
         if key == "w":
-            self.scroll = min(self.scroll + 1, max(0, len(self.game.log) - LOG_PAGE))
+            self.scroll = min(
+                self.scroll + 1, max(0, len(self.game.log) - self._page())
+            )
             return self
         if key == "s":
             self.scroll = max(self.scroll - 1, 0)
             return self
         return PlayingState(self.game, self.title)
+
+
+@dataclass(frozen=True)
+class _Size:
+    """How big every screen is, for one set of settings, so they all match.
+
+    `width` is inside the edge, and `height` counts every line. The playing
+    screen's Key panel is `key_width` wide, and its panels `panel_height` tall.
+    """
+
+    width: int
+    height: int
+    key_width: int
+    panel_height: int
+
+
+def _size(settings: Settings) -> _Size:
+    """The size of every screen with `settings`: the playing screen's, worked
+    out from the settings alone, so screens without a game match it too."""
+    view_width = settings.view_width
+    map_width = -(-settings.level_width // MINI_MAP_SCALE)
+    map_height = -(-settings.level_height // MINI_MAP_SCALE)
+    symbols = legend(settings)
+    panel_height = max(settings.view_height, map_height, len(symbols))
+    # Room for the longest status line a game could have: the most floors, a
+    # nine-digit seed below zero, and full hit points.
+    longest = _status(settings.max_floors, settings.max_floors, -(10**9 - 1), settings)
+    hit_points = f"HP {PLAYER_HIT_POINTS}/{PLAYER_HIT_POINTS}"
+    width = max(
+        MIN_FRAME_WIDTH,
+        len(longest) + len(hit_points) + 5,
+        len(MENU) + 2,
+        len(BANNER) + 2,
+    )
+    # The Key panel takes whatever width the View and Map panels leave.
+    key_width = max(
+        max(len(f" {glyph} {name}") for glyph, name in symbols) + 1,
+        width - view_width - map_width - 2,
+    )
+    width = view_width + 1 + map_width + 1 + key_width
+    height = panel_height + settings.log_lines + FRAME_LINES
+    return _Size(width, height, key_width, panel_height)
+
+
+def _status(depth: int, floors: int, seed: int, settings: Settings) -> str:
+    """The status line's account of where the player is, before hit points."""
+    return f"Level {depth} of {floors}   Seed {seed} (settings {settings.fingerprint})"
 
 
 def legend(settings: Settings) -> list[tuple[str, str]]:
@@ -407,27 +464,14 @@ def _carried(game: Game) -> list[str]:
 
 
 def _framed(
-    label: str,
-    body: list[str],
-    keys: str,
-    width: int,
-    after: list[str] | None = None,
-    height: int = 0,
+    label: str, body: list[str], keys: str, size: _Size, after: list[str] | None = None
 ) -> list[str]:
-    """A screen in the game's edge: the title banner, a panel labelled `label`
-    holding `body`, and a bar saying what the `keys` do. It's at least `width`
-    inside and `height` tall, and bigger if its text needs it. Lines `after`
-    go below the edge, unframed, so a code to copy is never cut short or mixed
-    with the edge."""
-    # The banner, labelled edge, blank lines, bar and edges take 9 lines.
-    body = body + [""] * (height - 9 - len(body))
-    width = max(
-        width,
-        *(len(line) + 2 for line in body),
-        len(keys) + 2,
-        len(label) + 6,
-        len(BANNER) + 2,
-    )
+    """A screen in the game's edge, `size` big: the title banner, a panel
+    labelled `label` holding `body`, and a bar saying what the `keys` do.
+    Lines `after` go below the edge, unframed, so a code to copy is never cut
+    short or mixed with the edge."""
+    width = size.width
+    body = _fit(body, size.height - FRAME_LINES)
     return [
         *_banner(width),
         _labelled_edge([(label, width)]),
@@ -439,6 +483,31 @@ def _framed(
         _edge(width),
         *(after or []),
     ]
+
+
+def _boxed(lines: list[str], size: _Size) -> list[str]:
+    """`lines` centred as one block inside an edge `size` big, so they keep
+    lining up with each other."""
+    width = size.width
+    lines = _fit(lines, size.height - 2, pad=False)
+    left = max((width - max(len(line) for line in lines)) // 2, 0)
+    top = (size.height - 2 - len(lines)) // 2
+    rows = [""] * top + [" " * left + line for line in lines]
+    rows += [""] * (size.height - 2 - len(rows))
+    return [
+        _edge(width),
+        *("|" + row[:width].ljust(width) + "|" for row in rows),
+        _edge(width),
+    ]
+
+
+def _fit(lines: list[str], rows: int, pad: bool = True) -> list[str]:
+    """`lines` made exactly `rows` long, with blank lines if `pad`, or cut short
+    with a note of how many more there are."""
+    if len(lines) > rows:
+        hidden = len(lines) - rows + 1
+        return [*lines[: rows - 1], f"  ...and {hidden} more"]
+    return lines + [""] * (rows - len(lines)) if pad else lines
 
 
 def _banner(width: int) -> list[str]:

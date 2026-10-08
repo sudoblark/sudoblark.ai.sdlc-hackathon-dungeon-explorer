@@ -228,8 +228,9 @@ def test_the_log_screen_shows_every_message_when_they_fit():
 def test_the_log_screen_opens_on_the_newest_page():
     label, body, _, _ = _parts(_logged(25).draw())
 
-    assert label == "Message log   6-25 of 25"
-    assert body[0] == "  Message 6."
+    # With the default settings, 19 messages fit in the panel.
+    assert label == "Message log   7-25 of 25"
+    assert body[0] == "  Message 7."
     assert body[-1] == "  Message 25."
 
 
@@ -238,9 +239,9 @@ def test_the_log_screen_scrolls_older_with_w_and_newer_with_s():
 
     assert log.handle("w") is log
     assert log.handle("w") is log
-    assert _parts(log.draw())[0] == "Message log   4-23 of 25"
+    assert _parts(log.draw())[0] == "Message log   5-23 of 25"
     assert log.handle("s") is log
-    assert _parts(log.draw())[0] == "Message log   5-24 of 25"
+    assert _parts(log.draw())[0] == "Message log   6-24 of 25"
 
 
 def test_the_log_screen_stops_scrolling_at_either_end():
@@ -248,10 +249,10 @@ def test_the_log_screen_stops_scrolling_at_either_end():
 
     for _ in range(10):
         log.handle("w")
-    assert _parts(log.draw())[0] == "Message log   1-20 of 25"
+    assert _parts(log.draw())[0] == "Message log   1-19 of 25"
     for _ in range(10):
         log.handle("s")
-    assert _parts(log.draw())[0] == "Message log   6-25 of 25"
+    assert _parts(log.draw())[0] == "Message log   7-25 of 25"
 
 
 def test_a_short_log_doesnt_scroll():
@@ -353,8 +354,22 @@ def _title(seed: int | None = None) -> TitleState:
     return TitleState(seed, random_seed=lambda: 99)
 
 
+def _inside(lines: list[str]) -> list[str]:
+    """What's inside a boxed screen, such as the title, as the block it was
+    drawn from: without the edge, the blank rows round it, or its indent. It
+    checks the edge lines up all round."""
+    assert len({len(line) for line in lines}) == 1
+    rows = [line[1:-1].rstrip() for line in lines[1:-1]]
+    while rows and not rows[0]:
+        rows.pop(0)
+    while rows and not rows[-1]:
+        rows.pop()
+    indent = min(len(row) - len(row.lstrip()) for row in rows if row)
+    return [row[indent:] for row in rows]
+
+
 def test_the_title_screen_highlights_new_game_first():
-    assert _title().draw() == [
+    assert _inside(_title().draw()) == [
         "+------------------------------+",
         "|       DUNGEON EXPLORER       |",
         "+------------------------------+",
@@ -370,7 +385,7 @@ def test_w_and_s_move_the_highlight_and_stop_at_either_end():
     title = _title()
 
     assert title.handle("s") is title
-    assert title.draw()[4:6] == ["    New game", "  > Exit <"]
+    assert _inside(title.draw())[4:6] == ["    New game", "  > Exit <"]
     title.handle("s")
     assert title.choice == 1
     title.handle("w")
@@ -653,13 +668,16 @@ def test_the_title_screen_lists_problems_with_the_settings_file():
     )
     title = TitleState(None, lambda: 1, warnings=("[level] has no key 'w'", long))
 
-    assert title.draw()[8:] == [
+    lines = _inside(title.draw())
+
+    assert lines[8:11] == [
         "",
         "Problems with the settings file:",
         "  [level] has no key 'w'",
-        "  [dungeon] min_floors (8) is more than max_floors (7), so the whole table",
-        "    uses the defaults",
     ]
+    # The long warning wraps to fit inside the edge, and none of it is lost.
+    assert " ".join(line.strip() for line in lines[11:]) == long
+    assert lines[12].startswith("    ")
 
 
 def test_the_title_screen_has_no_problems_section_without_warnings():
@@ -726,8 +744,42 @@ def test_every_screen_of_a_game_is_the_same_size_as_the_playing_screen(screen):
 
 
 def test_the_title_screen_keeps_its_own_look():
-    assert _title().draw()[:3] == [
+    assert _inside(_title().draw())[:3] == [
         "+------------------------------+",
         "|       DUNGEON EXPLORER       |",
         "+------------------------------+",
     ]
+
+
+@pytest.mark.parametrize(
+    "settings",
+    [
+        Settings(),
+        Settings(view_width=11, view_height=5, log_lines=1),
+        Settings(level_width=100, level_height=50),
+    ],
+)
+def test_every_screen_is_the_same_size_whatever_the_settings(settings):
+    title = TitleState(None, lambda: 1, settings=settings)
+    game = Game.new(seed=42, settings=settings)
+    screens = [title, SeedState(title), PlayingState(game), InventoryState(game)]
+    screens += [HelpState(game), LogState(game), LeaveState(game)]
+
+    sizes = set()
+    for screen in screens:
+        lines = screen.draw()
+        sizes |= {(len(lines), len(line)) for line in lines}
+
+    assert len(sizes) == 1
+
+
+def test_too_much_to_show_is_cut_short_rather_than_growing_the_screen():
+    game = game_on(ROOM, position=(2, 2))
+    game.player.inventory = [POTION] * 40
+    playing = PlayingState(game).draw()
+
+    lines = InventoryState(game).draw()
+
+    assert (len(lines), len(lines[0])) == (len(playing), len(playing[0]))
+    assert _parts(lines)[1][-1].startswith("  ...and ")
+    assert _parts(lines)[1][-1].endswith(" more")

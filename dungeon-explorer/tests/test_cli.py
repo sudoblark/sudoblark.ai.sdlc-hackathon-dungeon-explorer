@@ -115,7 +115,7 @@ def test_the_command_opens_on_the_title_screen(monkeypatch, capsys):
     code, out = _play(monkeypatch, capsys, ["--seed", "42"], *EXIT)
 
     assert code == 0
-    assert out.splitlines()[1] == "|       DUNGEON EXPLORER       |"
+    assert "|       DUNGEON EXPLORER       |" in out
     assert out.strip().endswith("Goodbye!")
     assert CLEAR_SCREEN not in out  # output isn't a terminal under test
 
@@ -310,8 +310,9 @@ def test_problems_with_the_settings_show_on_the_title_screen(
     _, out = _play(monkeypatch, capsys, ["--settings", str(missing)], *EXIT)
 
     assert "Problems with the settings file:" in out
-    # The path may be long enough to wrap, but it's never split.
-    assert f"{missing} doesn't exist" in " ".join(out.split())
+    # A long path may wrap across lines inside the edge, but none of it is lost.
+    inside = "".join(line.strip("| ") for line in out.splitlines())
+    assert "".join(f"{missing} doesn't exist".split()) in "".join(inside.split())
 
 
 def test_the_command_plays_with_the_settings_a_code_gives(monkeypatch, capsys):
