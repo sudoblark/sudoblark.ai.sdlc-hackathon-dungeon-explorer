@@ -198,6 +198,29 @@ def test_no_item_shares_a_tile_with_the_start_or_the_stairs(seed):
     assert level.stairs_down not in level.items
 
 
+@pytest.mark.parametrize("seed", SEEDS)
+def test_no_item_lies_within_one_tile_of_the_stairs(seed):
+    level = _level(seed)
+
+    stairs_x, stairs_y = level.stairs_down
+    for x, y in level.items:
+        assert max(abs(x - stairs_x), abs(y - stairs_y)) > 1, (x, y)
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_no_item_lies_in_a_doorway(seed):
+    level = _level(seed)
+
+    doors = {
+        (x, y)
+        for room in level.rooms
+        for x, y in room.walls()
+        if level.tile(x, y) is Tile.FLOOR
+    }
+    assert doors
+    assert not set(level.items) & doors
+
+
 def test_the_same_seed_and_depth_give_the_same_level():
     assert generate_level(42, depth=1) == generate_level(42, depth=1)
 
@@ -262,10 +285,10 @@ def test_the_same_seed_gives_the_same_start_stairs_and_items_in_every_run():
     assert level.player_start == (32, 25)
     assert level.stairs_down == (47, 13)
     assert level.items == {
-        (40, 13): Item("potion", "!"),
-        (40, 15): Item("potion", "!"),
-        (14, 15): Item("dagger", ")"),
-        (48, 13): Item("potion", "!"),
+        (43, 13): Item("potion", "!"),
+        (48, 15): Item("potion", "!"),
+        (15, 16): Item("dagger", ")"),
+        (41, 14): Item("potion", "!"),
         (44, 24): Item("scroll", "?"),
         (46, 26): Item("potion", "!"),
     }

@@ -44,7 +44,9 @@ def generate_level(seed: int, depth: int) -> Level:
     rooms = _join_rooms(tiles, rooms)
     player_start = rooms[0].centre
     stairs_down = _place_stairs_down(rng, rooms)
-    items = _place_items(rng, rooms, taken={player_start, stairs_down})
+    # Nothing goes on the eight tiles around the stairs, so they stand alone
+    # in the view and never share a block on the mini-map.
+    items = _place_items(rng, rooms, taken={player_start, *_around(stairs_down)})
     return Level(
         tiles=tiles,
         rooms=rooms,
@@ -84,6 +86,12 @@ def _place_items(
     floor = [tile for room in rooms for tile in room.tiles() if tile not in taken]
     count = rng.randint(*ITEMS_PER_LEVEL)
     return {tile: rng.choice(ITEMS) for tile in rng.sample(floor, count)}
+
+
+def _around(point: Point) -> set[Point]:
+    """`point` and the eight tiles around it."""
+    x, y = point
+    return {(x + dx, y + dy) for dy in (-1, 0, 1) for dx in (-1, 0, 1)}
 
 
 def _join_rooms(tiles: list[list[Tile]], rooms: list[Room]) -> list[Room]:

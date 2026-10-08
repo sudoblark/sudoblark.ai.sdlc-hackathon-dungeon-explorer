@@ -173,10 +173,10 @@ def test_going_down_the_stairs_keeps_the_inventory():
 def test_the_next_level_is_the_same_whatever_happened_on_this_one():
     straight_down = _on_the_stairs(seed=42)
     wandered = Game.new(seed=42)
-    # Seed 42 has a potion at (40, 13): walk around, then step onto it.
+    # Seed 42 has a potion at (43, 13): walk around, then step onto it.
     for direction in Direction:
         wandered.move(direction)
-    wandered.player.position = (41, 13)
+    wandered.player.position = (44, 13)
     wandered.move(Direction.WEST)
     assert wandered.player.inventory == [POTION]
     wandered.player.position = wandered.level.stairs_down
