@@ -3,9 +3,9 @@ import copy
 import pytest
 from helpers import game_on, level_from
 
-from dungeon_explorer.commands import Descend, Move, parse_command
+from dungeon_explorer.commands import Descend, Drink, Move, parse_command
 from dungeon_explorer.game import Game
-from dungeon_explorer.level import Direction
+from dungeon_explorer.level import Direction, Item
 
 ROOM = level_from(
     "#####",
@@ -24,6 +24,7 @@ ROOM = level_from(
         ("s", Move(Direction.SOUTH)),
         ("d", Move(Direction.EAST)),
         (">", Descend()),
+        ("p", Drink()),
     ],
 )
 def test_each_key_gives_its_command(text, command):
@@ -62,3 +63,16 @@ def test_a_descend_command_goes_down_just_as_descend_does():
 
     assert commanded == direct
     assert commanded.depth == 2
+
+
+def test_a_drink_command_drinks_just_as_drink_does():
+    commanded = Game.new(seed=42)
+    commanded.player.inventory = [Item("potion", "!", healing=5)]
+    commanded.player.hit_points = 12
+    direct = copy.deepcopy(commanded)
+
+    Drink().execute(commanded)
+    direct.drink()
+
+    assert commanded == direct
+    assert commanded.player.hit_points == 17

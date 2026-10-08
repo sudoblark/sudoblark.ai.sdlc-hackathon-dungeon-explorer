@@ -127,6 +127,26 @@ class Game:
             m for m in self.level.monsters if self.level.can_see(position, m.position)
         ]
 
+    def drink(self) -> None:
+        """Drink the first potion carried, healing up to the most hit points.
+
+        Drinking is a turn, so the monsters then take theirs. With nothing to
+        drink, or nothing to heal, it isn't.
+        """
+        player = self.player
+        potion = next((item for item in player.inventory if item.healing), None)
+        if potion is None:
+            self.say("You have nothing to drink.")
+            return
+        if player.hit_points == PLAYER_HIT_POINTS:
+            self.say("You're already at full health.")
+            return
+        player.inventory.remove(potion)
+        healed = min(potion.healing, PLAYER_HIT_POINTS - player.hit_points)
+        player.hit_points += healed
+        self.say(f"You drink the {potion.name} and heal {healed} hit points.")
+        self._monsters_act()
+
     def say(self, text: str) -> None:
         """Add `text` to the log, counting it again if it's the same as the last."""
         if self.log and self.log[-1].text == text:

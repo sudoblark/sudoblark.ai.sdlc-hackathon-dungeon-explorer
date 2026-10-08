@@ -5,7 +5,7 @@ from dungeon_explorer.game import Game, Message, Player
 from dungeon_explorer.generate import floor_count, generate_level
 from dungeon_explorer.level import Direction, Item, Monster, Point, Room
 
-POTION = Item("potion", "!")
+POTION = Item("potion", "!", healing=5)
 GOLD = Item("gold", "$")
 
 
@@ -632,3 +632,62 @@ def test_hit_points_stop_at_zero_and_the_last_hit_kills():
     assert str(game.log[-1]) == "The goblin kills you."
     # Once the player is dead, the rat doesn't take its turn.
     assert [str(m) for m in game.log].count("The rat hits you.") == 0
+
+
+def test_drinking_a_potion_heals_five_and_uses_it_up():
+    game = game_on(level_from(*OPEN_ROOM), position=(1, 1))
+    game.player.inventory = [DAGGER, POTION, POTION]
+    game.player.hit_points = 10
+
+    game.drink()
+
+    assert game.player.hit_points == 15
+    assert game.player.inventory == [DAGGER, POTION]
+    assert str(game.log[-1]) == "You drink the potion and heal 5 hit points."
+
+
+def test_a_potion_never_heals_past_the_most_hit_points():
+    game = game_on(level_from(*OPEN_ROOM), position=(1, 1))
+    game.player.inventory = [POTION]
+    game.player.hit_points = 18
+
+    game.drink()
+
+    assert game.player.hit_points == 20
+    assert str(game.log[-1]) == "You drink the potion and heal 2 hit points."
+
+
+def test_drinking_is_a_turn():
+    rat = _rat((6, 2))
+    game = game_on(level_from(*OPEN_ROOM, monsters=[rat]), position=(1, 2))
+    game.player.inventory = [POTION]
+    game.player.hit_points = 10
+
+    game.drink()
+
+    assert rat.position == (5, 2)
+
+
+def test_with_nothing_to_drink_it_says_so_and_isnt_a_turn():
+    rat = _rat((6, 2))
+    game = game_on(level_from(*OPEN_ROOM, monsters=[rat]), position=(1, 2))
+    game.player.inventory = [DAGGER]
+    game.player.hit_points = 10
+
+    game.drink()
+
+    assert game.player.hit_points == 10
+    assert str(game.log[-1]) == "You have nothing to drink."
+    assert rat.position == (6, 2)
+
+
+def test_at_full_health_it_keeps_the_potion_and_isnt_a_turn():
+    rat = _rat((6, 2))
+    game = game_on(level_from(*OPEN_ROOM, monsters=[rat]), position=(1, 2))
+    game.player.inventory = [POTION]
+
+    game.drink()
+
+    assert game.player.inventory == [POTION]
+    assert str(game.log[-1]) == "You're already at full health."
+    assert rat.position == (6, 2)

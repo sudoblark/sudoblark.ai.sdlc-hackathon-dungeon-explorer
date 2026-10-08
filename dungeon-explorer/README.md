@@ -32,7 +32,8 @@ In a game, press a key; there's no need to press Enter:
 | --- | --- |
 | `w` `a` `s` `d` | Move one step north, west, south or east, or attack a monster in the way |
 | `>` | Go down the stairs, when you're standing on them |
-| `i` | Look at your inventory |
+| `i` | Look at your items |
+| `p` | Drink a potion from your items, healing 5 hit points up to the most you can have |
 | `l` | Read every message so far, scrolling with `w` and `s` |
 | `c` | Clear the messages |
 | `?` | Show the help |

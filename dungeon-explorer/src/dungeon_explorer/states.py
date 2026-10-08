@@ -21,7 +21,7 @@ from dungeon_explorer.render import PLAYER, STAIRS_DOWN, draw_mini_map, draw_vie
 
 BACK = "Press any key to go back."
 TITLE = "DUNGEON EXPLORER"
-MENU = "i inventory  l log  c clear  ? help  q leave"
+MENU = "i items  p drink  l log  c clear  ? help  q leave"
 # The keys that mean Enter: a terminal sends "\n" or "\r", and piped input
 # reads an empty line.
 ENTER = ("", "\n", "\r")
@@ -220,7 +220,7 @@ class InventoryState(_InGameState):
             for row, item in enumerate(player.inventory)
         ]
         return [
-            "Inventory",
+            "Items",
             "",
             *(items or ["  You aren't carrying anything yet."]),
             "",
@@ -240,7 +240,8 @@ class HelpState(_InGameState):
             "",
             "  w a s d   move north, west, south or east",
             "  >         go down the stairs, when you're on them",
-            "  i         look at your inventory",
+            "  i         look at your items",
+            "  p         drink a potion, healing 5 hit points",
             "  l         read every message so far",
             "  c         clear the messages",
             "  ?         show this help",

@@ -23,7 +23,7 @@ BEND_COST = 4
 # Each kind of item, and the first floor it can turn up on. Stronger
 # weapons only turn up deeper.
 ITEMS = (
-    (Item("potion", "!"), 1),
+    (Item("potion", "!", healing=5), 1),
     (Item("gold", "$"), 1),
     (Item("scroll", "?"), 1),
     (Item("dagger", ")", damage=2), 1),

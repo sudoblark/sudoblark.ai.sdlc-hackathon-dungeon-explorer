@@ -88,12 +88,14 @@ class Room:
 class Item:
     """Something the player can pick up. Its glyph is how it's drawn.
 
-    A weapon does `damage` to whatever it hits. Anything else does none.
+    A weapon does `damage` to whatever it hits, and something to drink heals
+    `healing` hit points. Anything else does neither.
     """
 
     name: str
     glyph: str
     damage: int = 0
+    healing: int = 0
 
 
 @dataclass

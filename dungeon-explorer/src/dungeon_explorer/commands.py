@@ -37,6 +37,14 @@ class Descend(Command):
         game.descend()
 
 
+@dataclass(frozen=True)
+class Drink(Command):
+    """Drink a potion to heal."""
+
+    def execute(self, game: Game) -> None:
+        game.drink()
+
+
 # Commands hold no state, so each key can share one instance.
 KEYS: dict[str, Command] = {
     "w": Move(Direction.NORTH),
@@ -44,6 +52,7 @@ KEYS: dict[str, Command] = {
     "s": Move(Direction.SOUTH),
     "d": Move(Direction.EAST),
     ">": Descend(),
+    "p": Drink(),
 }
 
 

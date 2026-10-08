@@ -40,8 +40,8 @@ def test_playing_draws_a_header_the_panels_with_a_legend_and_the_log():
     lines = PlayingState(game).draw()
 
     view, mini_map = draw_view(game), draw_mini_map(game)
-    menu = "i inventory  l log  c clear  ? help  q leave"
-    assert lines[0] == "DUNGEON EXPLORER" + " " * 8 + menu
+    menu = "i items  p drink  l log  c clear  ? help  q leave"
+    assert lines[0] == "DUNGEON EXPLORER" + " " * 3 + menu
     assert lines[1] == f"Level 1 of {floor_count(42)}   Seed 42   HP 20/20"
     assert lines[2] == "+- View " + "-" * 24 + "+ +- Map " + "-" * 26 + "+"
     key = ["Key", "@ you", "# wall", ". floor", "> stairs"]
@@ -150,7 +150,7 @@ def test_the_inventory_lists_what_the_player_carries_in_order():
     game.player.inventory = [POTION, GOLD]
 
     assert InventoryState(game).draw() == [
-        "Inventory",
+        "Items",
         "",
         "  ! potion",
         "  $ gold",
@@ -163,7 +163,7 @@ def test_the_inventory_says_when_it_is_empty():
     game = game_on(ROOM, position=(2, 2))
 
     assert InventoryState(game).draw() == [
-        "Inventory",
+        "Items",
         "",
         "  You aren't carrying anything yet.",
         "",
@@ -175,7 +175,7 @@ def test_the_help_lists_every_key():
     lines = HelpState(game_on(ROOM, position=(2, 2))).draw()
 
     assert lines[0] == "How to play"
-    for key in ("w a s d", ">", "i", "l", "c", "?", "q"):
+    for key in ("w a s d", ">", "i", "p", "l", "c", "?", "q"):
         assert any(line.startswith(f"  {key} ") for line in lines), key
 
 

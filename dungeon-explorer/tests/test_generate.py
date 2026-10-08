@@ -293,12 +293,12 @@ def test_the_same_seed_gives_the_same_start_stairs_and_items_in_every_run():
     assert level.player_start == (32, 25)
     assert level.stairs_down == (47, 13)
     assert level.items == {
-        (43, 13): Item("potion", "!"),
-        (48, 15): Item("potion", "!"),
+        (43, 13): Item("potion", "!", healing=5),
+        (48, 15): Item("potion", "!", healing=5),
         (15, 16): Item("dagger", ")", damage=2),
-        (41, 14): Item("potion", "!"),
+        (41, 14): Item("potion", "!", healing=5),
         (44, 24): Item("scroll", "?"),
-        (46, 26): Item("potion", "!"),
+        (46, 26): Item("potion", "!", healing=5),
     }
 
 
@@ -403,3 +403,9 @@ def test_only_weapons_do_damage():
     weapons = {kind.name: kind.damage for kind, _ in ITEMS if kind.damage}
 
     assert weapons == {"dagger": 2, "sword": 3, "axe": 4}
+
+
+def test_only_potions_heal():
+    healers = {kind.name: kind.healing for kind, _ in ITEMS if kind.healing}
+
+    assert healers == {"potion": 5}
