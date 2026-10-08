@@ -45,20 +45,20 @@ A turn-based dungeon explorer drawn in ASCII in the terminal. Each level is gene
 | 9 | `feat(render): draw the view around the player (TKT-05)` | A 31×15 view, centred on the player at full scale, showing explored tiles, items, stairs and `@`. Anything unexplored or off the level is blank. Tests compare exact strings drawn from a small hand-built level. | ✅ |
 | 10 | `feat(render): draw the mini-map of explored tiles (TKT-05)` | The whole level at half scale, one character for every 2×2 block of tiles: `@` for the player, `>` for stairs once seen, an item's own glyph once seen (the person asked for items too; stairs win if they share a block), `.` for explored floor, `#` for explored walls, and blank for everything else. Tests compare exact strings. | ✅ |
 | 11 | `feat(generate): keep items clear of the stairs (TKT-05)` | Items never land on the stairs or the eight tiles around them, so the stairs stand alone in the view and on the mini-map. Any two tiles in a 2×2 mini-map block touch, so this also keeps items out of the stairs' block, without tying the generator to the mini-map's scale. The person asked for this after seed 42 put a potion beside its stairs. Tests: no item within one tile of the stairs; no item on a door; seed 42's pinned items and the stairs test that walks to its potion are updated. | ✅ |
-| 12 | `feat(commands): turn typed input into commands (TKT-05)` | The Command pattern: `Move(direction)` and `Descend`, each with `execute(game)`, and `parse_command(text)`, which maps `w` `a` `s` `d` and `>` to them and anything else to no command. Tests: each key gives the right command; running a command changes the game just as `move` or `descend` would; unknown input gives no command. ✅ |
+| 12 | `feat(commands): turn typed input into commands (TKT-05)` | The Command pattern: `Move(direction)` and `Descend`, each with `execute(game)`, and `parse_command(text)`, which maps `w` `a` `s` `d` and `>` to them and anything else to no command. Tests: each key gives the right command; running a command changes the game just as `move` or `descend` would; unknown input gives no command. | ✅ |
 | 13 | `feat(states): add the playing, inventory and help screens (TKT-05)` | The State pattern: each state draws its screen and handles a line of input, returning the next state, or nothing to quit. Playing draws the view and mini-map from `render`, with the depth, the seed and the last message, and runs commands. From Playing, `i` opens the inventory, `?` the help, and `q` quits. Any input on the inventory or help screen goes back to playing. Tests: every transition, and what each screen draws. | ✅ |
-| 14 | `feat(cli): run the game loop in the terminal (TKT-05)` | The Game Loop: draw the current state, read a line, hand it over, and stop when there's no next state. It's started with `dungeon-explorer --seed N`; without a seed it picks one and shows it. Adds a "How to play" section to the README. Tests drive the loop with scripted input and check what it prints. | |
+| 14 | `feat(cli): run the game loop in the terminal (TKT-05)` | The Game Loop: draw the current state, read a line, hand it over, and stop when there's no next state. It's started with `dungeon-explorer --seed N`; without a seed it picks one and shows it. Adds a "How to play" section to the README. Tests drive the loop with scripted input and check what it prints. | ✅ |
 
 ## Post-commit testing
 
 | # | Check | How | Status |
 | --- | --- | --- | --- |
-| 1 | The checks pass on the finished project | In `dungeon-explorer/`, run `uv run pytest`, `uv run ruff check` and `uv run ruff format --check`. All three pass. | |
+| 1 | The checks pass on the finished project | In `dungeon-explorer/`, run `uv run pytest`, `uv run ruff check` and `uv run ruff format --check`. All three pass. | ✅ |
 | 2 | It runs from a fresh clone by following the README | Clone the branch into a temporary folder and follow the README's steps through to `uv run dungeon-explorer --seed 42`. The first screen draws with no errors. | |
 | 3 | The same seed always draws the same dungeon | Run `printf 'q\n' \| uv run dungeon-explorer --seed 42` twice and diff the two outputs: they match. With `--seed 43`, the output differs. | |
 | 4 | Walls block movement | Play with `--seed 42` and walk into a wall. The `@` doesn't move, and the message says a wall is in the way. | |
 | 5 | Picked-up items appear in the inventory | Walk onto an item and see the pick-up message, then enter `i`: the inventory screen lists the item, and any input goes back to the game. | |
-| 6 | The stairs lead down | `>` away from the stairs is refused. On the stairs, it draws level 2, the depth shows 2 and the inventory is unchanged. Replaying the same seed gives the same level 2. | |
+| 6 | The stairs lead down | `>` away from the stairs is refused. On the stairs, it draws level 2, the depth shows 2 and the inventory is unchanged. Replaying the same seed gives the same level 2. | ✅ |
 | 7 | The mini-map shows only the explored parts | At the start, the mini-map shows only the start room. Walking a corridor fills it in behind the player, and the unexplored parts stay blank. | |
 
 ## Acceptance criteria
@@ -79,3 +79,11 @@ Once every acceptance criterion is met, a team with time to spare can add these 
 - Attacking a monster by walking into it
 - Hit points, and game over when they reach zero
 - Settings such as the level size, the rooms, the view size and the items, read from a TOML file with `tomllib`. A seed then only reproduces a dungeon with the same settings, so this also needs a way for a replay to know which settings were used.
+
+The person added these after play-testing:
+
+- Moving and acting on a single keypress, without pressing Enter. This reverses the line-based decision, so it needs raw terminal input (`termios` on macOS and Linux, `msvcrt` on Windows) and a new way to script input in tests.
+- A header and a legend on the playing screen: the game's title at the top, and a key to the symbols beside the map.
+- A title screen with New Game and Exit, as a new state that comes before playing.
+- A fixed number of floors, with the total in the legend (`Level 2 of 5`) and a way to finish on the last one. At the moment the dungeon goes on forever, so there's nothing to complete.
+- Saving and loading from a menu. Levels regenerate from the seed, so a save only needs the seed, the depth, the player's position and inventory, the explored tiles, and which items have been picked up on the current level.
