@@ -629,6 +629,7 @@ def test_hit_points_stop_at_zero_and_the_last_hit_kills():
     game.move(Direction.EAST)  # an attack: the goblin hits back first
 
     assert game.player.hit_points == 0
+    assert game.killed_by == "goblin"
     assert str(game.log[-1]) == "The goblin kills you."
     # Once the player is dead, the rat doesn't take its turn.
     assert [str(m) for m in game.log].count("The rat hits you.") == 0
@@ -691,3 +692,13 @@ def test_at_full_health_it_keeps_the_potion_and_isnt_a_turn():
     assert game.player.inventory == [POTION]
     assert str(game.log[-1]) == "You're already at full health."
     assert rat.position == (6, 2)
+
+
+def test_nothing_has_killed_the_player_while_they_have_hit_points():
+    goblin = _goblin((3, 1))
+    game = game_on(level_from(*OPEN_ROOM, monsters=[goblin]), position=(1, 1))
+
+    game.move(Direction.EAST)
+
+    assert game.player.hit_points == 18
+    assert game.killed_by is None

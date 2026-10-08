@@ -52,7 +52,8 @@ class Game:
 
     `explored` holds every tile of this level the player has seen, and `log`
     holds every message of the game, oldest first, for showing to the player.
-    `finished` turns true when the player goes down the last floor's stairs.
+    `finished` turns true when the player goes down the last floor's stairs,
+    and `killed_by` names the monster that took their last hit point.
     """
 
     seed: int
@@ -62,6 +63,7 @@ class Game:
     explored: set[Point] = field(default_factory=set)
     log: list[Message] = field(default_factory=list)
     finished: bool = False
+    killed_by: str | None = None
 
     def __post_init__(self) -> None:
         self._explore()
@@ -186,6 +188,7 @@ class Game:
         player = self.player
         player.hit_points = max(player.hit_points - monster.damage, 0)
         if player.hit_points == 0:
+            self.killed_by = monster.name
             self.say(f"The {monster.name} kills you.")
         else:
             self.say(f"The {monster.name} hits you.")

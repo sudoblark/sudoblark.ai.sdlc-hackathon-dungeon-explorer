@@ -24,7 +24,7 @@ It opens on a title screen: `w` and `s` move between New game and Exit, and Ente
 uv run dungeon-explorer --seed 42
 ```
 
-Each dungeon has between 3 and 7 floors, depending on its seed, and the top of the screen shows which one you're on, such as `Level 2 of 5`, and your hit points, which start at `HP 20/20`. Find the stairs on every floor to go deeper: the last floor's stairs lead out of the dungeon, and out is how you win.
+Each dungeon has between 3 and 7 floors, depending on its seed, and the top of the screen shows which one you're on, such as `Level 2 of 5`, and your hit points, which start at `HP 20/20`. If they run out, you die, and it's back to the title screen. Find the stairs on every floor to go deeper: the last floor's stairs lead out of the dungeon, and out is how you win.
 
 In a game, press a key; there's no need to press Enter:
 

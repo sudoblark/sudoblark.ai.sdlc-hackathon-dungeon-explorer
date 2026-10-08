@@ -20,6 +20,7 @@ from dungeon_explorer.level import Tile
 from dungeon_explorer.render import PLAYER, STAIRS_DOWN, draw_mini_map, draw_view
 
 BACK = "Press any key to go back."
+TO_TITLE = "Press any key to go back to the title."
 TITLE = "DUNGEON EXPLORER"
 MENU = "i items  p drink  l log  c clear  ? help  q leave"
 # The keys that mean Enter: a terminal sends "\n" or "\r", and piped input
@@ -205,6 +206,8 @@ class PlayingState(_InGameState):
             self.game.say(f"Unknown command {text.strip()!r}. Press ? for help.")
         if self.game.finished:
             return WinState(self.game, self.title)
+        if self.game.killed_by is not None:
+            return GameOverState(self.game, self.title)
         return self
 
 
@@ -260,16 +263,14 @@ class WinState(_InGameState):
 
     def draw(self) -> list[str]:
         game = self.game
-        inventory = game.player.inventory
-        items = [f"  {item.glyph} {item.name}" for item in inventory]
         return [
             "You escaped the dungeon!",
             "",
             f"You made it through all {game.floors} floors of seed {game.seed},"
             " carrying:",
-            *(items or ["  nothing at all."]),
+            *_carried(game),
             "",
-            "Press any key to finish.",
+            TO_TITLE,
         ]
 
     def handle(self, text: str) -> State | None:
@@ -278,6 +279,30 @@ class WinState(_InGameState):
     def goodbye(self) -> str:
         game = self.game
         return f"Goodbye! You escaped all {game.floors} floors of seed {game.seed}."
+
+
+class GameOverState(_InGameState):
+    """The player's hit points have run out."""
+
+    def draw(self) -> list[str]:
+        game = self.game
+        return [
+            "You died.",
+            "",
+            f"The {game.killed_by} killed you on level {game.depth} of"
+            f" {game.floors} of seed {game.seed}.",
+            "You were carrying:",
+            *_carried(game),
+            "",
+            TO_TITLE,
+        ]
+
+    def handle(self, text: str) -> State | None:
+        return self.title
+
+    def goodbye(self) -> str:
+        game = self.game
+        return f"Goodbye! You died on level {game.depth} of seed {game.seed}."
 
 
 class LeaveState(_InGameState):
@@ -331,6 +356,12 @@ class LogState(_InGameState):
             self.scroll = max(self.scroll - 1, 0)
             return self
         return PlayingState(self.game, self.title)
+
+
+def _carried(game: Game) -> list[str]:
+    """The lines listing what the player has with them at the end of a game."""
+    items = [f"  {item.glyph} {item.name}" for item in game.player.inventory]
+    return items or ["  nothing at all."]
 
 
 def _frame(lines: list[str], height: int, label: str) -> list[str]:

@@ -5,10 +5,11 @@ from helpers import game_on, level_from
 
 from dungeon_explorer.game import Game
 from dungeon_explorer.generate import ITEMS, MONSTERS, floor_count
-from dungeon_explorer.level import Item, Tile
+from dungeon_explorer.level import Item, Monster, Tile
 from dungeon_explorer.render import PLAYER, STAIRS_DOWN, draw_mini_map, draw_view
 from dungeon_explorer.states import (
     LEGEND,
+    GameOverState,
     HelpState,
     InventoryState,
     LeaveState,
@@ -325,7 +326,7 @@ def test_the_win_screen_says_how_deep_and_what_was_carried_out():
         "  ! potion",
         "  $ gold",
         "",
-        "Press any key to finish.",
+        "Press any key to go back to the title.",
     ]
 
 
@@ -548,3 +549,66 @@ def test_the_status_line_shows_the_players_hit_points():
     game.player.hit_points = 7
 
     assert PlayingState(game).draw()[1].endswith("   HP 7/20")
+
+
+def _about_to_die() -> Game:
+    """Seed 1's first floor, with a goblin next to the player on one hit point."""
+    game = Game.new(seed=1)
+    x, y = game.player.position
+    goblin = Monster("goblin", "g", hit_points=4, damage=2, position=(x + 1, y))
+    game.level.monsters = [goblin]
+    game.player.hit_points = 1
+    return game
+
+
+def test_losing_the_last_hit_point_shows_the_game_over_screen():
+    title = _title()
+    game = _about_to_die()
+
+    # Punching the goblin is a turn, and it hits back.
+    over = PlayingState(game, title).handle("d")
+
+    assert isinstance(over, GameOverState)
+    assert over.game is game
+    assert over.title is title
+
+
+def test_the_game_over_screen_says_what_killed_the_player_and_where():
+    game = _about_to_die()
+    PlayingState(game).handle("d")
+
+    assert GameOverState(game).draw() == [
+        "You died.",
+        "",
+        "The goblin killed you on level 1 of 3 of seed 1.",
+        "You were carrying:",
+        "  nothing at all.",
+        "",
+        "Press any key to go back to the title.",
+    ]
+
+
+def test_the_game_over_screen_lists_what_the_player_was_carrying():
+    game = _about_to_die()
+    game.player.inventory = [POTION, GOLD]
+    PlayingState(game).handle("d")
+
+    assert GameOverState(game).draw()[3:6] == [
+        "You were carrying:",
+        "  ! potion",
+        "  $ gold",
+    ]
+
+
+def test_any_key_on_the_game_over_screen_goes_back_to_the_title():
+    title = _title()
+    game = _about_to_die()
+
+    assert GameOverState(game, title).handle("x") is title
+    assert GameOverState(game).handle("x") is None
+
+
+def test_the_game_over_screen_says_goodbye_with_the_level_and_seed():
+    game = _about_to_die()
+
+    assert GameOverState(game).goodbye() == "Goodbye! You died on level 1 of seed 1."

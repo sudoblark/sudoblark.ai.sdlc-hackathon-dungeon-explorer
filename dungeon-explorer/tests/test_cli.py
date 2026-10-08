@@ -8,6 +8,7 @@ from dungeon_explorer import cli
 from dungeon_explorer.cli import CLEAR_SCREEN, _key_from, game_loop, main
 from dungeon_explorer.game import Game
 from dungeon_explorer.generate import floor_count
+from dungeon_explorer.level import Monster
 from dungeon_explorer.states import InventoryState, PlayingState
 
 # Piped input for the menus: an empty line is Enter.
@@ -225,3 +226,17 @@ def test_finishing_the_dungeon_ends_the_loop_on_the_win_screen():
     assert drawn[1].startswith("You escaped the dungeon!")
     assert drawn[-1] == "Goodbye! You escaped all 3 floors of seed 1."
     assert len(drawn) == 3  # playing, win, goodbye
+
+
+def test_dying_ends_the_loop_on_the_game_over_screen():
+    game = Game.new(seed=1)
+    x, y = game.player.position
+    game.level.monsters = [Monster("goblin", "g", 4, 2, position=(x + 1, y))]
+    game.player.hit_points = 1
+    drawn: list[str] = []
+
+    game_loop(PlayingState(game), _script("d", "x", "never read"), drawn.append)
+
+    assert drawn[1].startswith("You died.")
+    assert drawn[-1] == "Goodbye! You died on level 1 of seed 1."
+    assert len(drawn) == 3  # playing, game over, goodbye
