@@ -51,23 +51,24 @@ A turn-based dungeon explorer drawn in ASCII in the terminal. Each level is gene
 
 ### Stretch goals
 
-Rows 15 to 27 are stretch goals, added once every acceptance criterion was met.
+Rows 15 to 28 are stretch goals, added once every acceptance criterion was met.
 
 | # | Commit message | What it covers | Status |
 | --- | --- | --- | --- |
-| 15 | `feat(cli): read single keypresses in a terminal (TKT-05)` | In a terminal, each key acts as soon as it's pressed: `tty.setcbreak` on macOS and Linux, so Ctrl-C still quits, and `msvcrt.getwch` on Windows. When input is piped, the loop still reads lines, so scripted runs and check 3 keep working. "Press Enter" becomes "Press any key". Tests: piped input still drives the loop; the key reader only reads raw keys from a terminal. The raw path is checked by hand. | |
+| 15 | `feat(cli): read single keypresses in a terminal (TKT-05)` | In a terminal, each key acts as soon as it's pressed: `tty.setcbreak` on macOS and Linux, so Ctrl-C still quits, and `msvcrt.getwch` on Windows. When input is piped, the loop still reads lines, so scripted runs and check 3 keep working. "Press Enter" becomes "Press any key". Tests: piped input still drives the loop; the key reader only reads raw keys from a terminal. The raw path is checked by hand. | ✅ |
 | 16 | `refactor(states): give each state the game it shows (TKT-05)` | States hold their own game instead of the loop passing one in, so a title screen can start new games and leave finished ones behind. No change in behaviour; the existing tests move to the new shape. | |
 | 17 | `feat(states): add a header and legend to the playing screen (TKT-05)` | The game's title at the top of the playing screen, and a key to every symbol, all within 80 columns. The layout is signed off at this commit. Tests: the exact header and legend lines, and the width. | |
-| 18 | `feat(game): end the dungeon after its last floor (TKT-05)` | A fixed number of floors, shown as `Level 2 of 5`. Going down the stairs on the last floor finishes the game instead of generating another level. The number of floors is signed off at this commit. Tests: reaching the last floor, finishing from it, and the status line. | |
-| 19 | `feat(states): show a win screen when the dungeon is finished (TKT-05)` | A win screen saying how deep the player went and what they carried out. Any key ends the game until row 20 sends it to the title screen. Tests: the transition and what it draws. | |
-| 20 | `feat(states): add a title screen with new game and exit (TKT-05)` | The game opens on a title screen with New Game and Exit. New Game uses `--seed` if it was given, otherwise a random seed. Finishing goes back to the title. The keys, and whether `q` while playing quits or goes to the title, are signed off at this commit. Tests: every transition, and the seed each new game gets. | |
-| 21 | `feat(generate): place monsters and show the ones in sight (TKT-05)` | A few seeded monsters on each level, kept out of the start room, drawn only when the player has a clear line of sight to them. Monster kinds and how they're modelled are signed off at this commit. Tests: the placement rules, line of sight through floor and blocked by walls, the drawing, and seed 42's monsters pinned. | |
-| 22 | `feat(game): monsters chase the player they can see (TKT-05)` | After each turn, each monster that can see the player steps one tile towards them, never into a wall, another monster or the player. Tests: chasing, staying put out of sight, and being blocked. | |
-| 23 | `feat(game): attack a monster by walking into it (TKT-05)` | Walking into a monster hits it instead of moving. Monsters have hit points and are removed at zero, with messages. Whether damage is fixed or rolled from the seed is signed off at this commit. Tests: hitting, killing and the messages. | |
-| 24 | `feat(game): monsters hit back and hit points run out (TKT-05)` | The player has hit points, shown on the status line, and a monster next to the player at the end of a turn hits them. Tests: taking damage, the status line, and hit points stopping at zero. | |
-| 25 | `feat(states): show a game over screen at zero hit points (TKT-05)` | At zero hit points the game shows a game over screen, and any key goes back to the title. Tests: the transition and what it draws. | |
-| 26 | `feat(settings): read the game's settings from a TOML file (TKT-05)` | The level size, rooms, items, monsters, floors and view size come from a TOML file read with `tomllib`, with today's values as the defaults. The format and the file's location are signed off at this commit. Tests: the defaults, overriding a setting, and rejecting bad values. | |
-| 27 | `feat(settings): show which settings a seed was played with (TKT-05)` | A short fingerprint of the settings beside the seed, on screen and in the goodbye line, so a replay can tell it has the same settings. Tests: the same settings give the same fingerprint, and any change gives a different one. | |
+| 18 | `feat(game): keep a log of messages, with a key to clear it (TKT-05)` | Messages stay in a log instead of each one replacing the last, and the playing screen shows the newest few under the map. A key clears the log. How many lines show, the key, and whether the whole log gets its own screen are signed off at this commit. The person asked for this while trying row 15. Tests: messages pile up in order, the screen shows the newest, and clearing empties the log. | |
+| 19 | `feat(game): end the dungeon after its last floor (TKT-05)` | A fixed number of floors, shown as `Level 2 of 5`. Going down the stairs on the last floor finishes the game instead of generating another level. The number of floors is signed off at this commit. Tests: reaching the last floor, finishing from it, and the status line. | |
+| 20 | `feat(states): show a win screen when the dungeon is finished (TKT-05)` | A win screen saying how deep the player went and what they carried out. Any key ends the game until row 21 sends it to the title screen. Tests: the transition and what it draws. | |
+| 21 | `feat(states): add a title screen with new game and exit (TKT-05)` | The game opens on a title screen with New Game and Exit. New Game uses `--seed` if it was given, otherwise a random seed. Finishing goes back to the title. The keys, and whether `q` while playing quits or goes to the title, are signed off at this commit. Tests: every transition, and the seed each new game gets. | |
+| 22 | `feat(generate): place monsters and show the ones in sight (TKT-05)` | A few seeded monsters on each level, kept out of the start room, drawn only when the player has a clear line of sight to them. Monster kinds and how they're modelled are signed off at this commit. Tests: the placement rules, line of sight through floor and blocked by walls, the drawing, and seed 42's monsters pinned. | |
+| 23 | `feat(game): monsters chase the player they can see (TKT-05)` | After each turn, each monster that can see the player steps one tile towards them, never into a wall, another monster or the player. Tests: chasing, staying put out of sight, and being blocked. | |
+| 24 | `feat(game): attack a monster by walking into it (TKT-05)` | Walking into a monster hits it instead of moving. Monsters have hit points and are removed at zero, with messages. Whether damage is fixed or rolled from the seed is signed off at this commit. Tests: hitting, killing and the messages. | |
+| 25 | `feat(game): monsters hit back and hit points run out (TKT-05)` | The player has hit points, shown on the status line, and a monster next to the player at the end of a turn hits them. Tests: taking damage, the status line, and hit points stopping at zero. | |
+| 26 | `feat(states): show a game over screen at zero hit points (TKT-05)` | At zero hit points the game shows a game over screen, and any key goes back to the title. Tests: the transition and what it draws. | |
+| 27 | `feat(settings): read the game's settings from a TOML file (TKT-05)` | The level size, rooms, items, monsters, floors, view size and number of log lines come from a TOML file read with `tomllib`, with today's values as the defaults. The format and the file's location are signed off at this commit. Tests: the defaults, overriding a setting, and rejecting bad values. | |
+| 28 | `feat(settings): show which settings a seed was played with (TKT-05)` | A short fingerprint of the settings beside the seed, on screen and in the goodbye line, so a replay can tell it has the same settings. Tests: the same settings give the same fingerprint, and any change gives a different one. | |
 
 ## Post-commit testing
 
@@ -83,19 +84,20 @@ Rows 15 to 27 are stretch goals, added once every acceptance criterion was met.
 
 ### Stretch goals
 
-Checks 8 to 16 test the stretch goals, once rows 15 to 27 have landed.
+Checks 8 to 17 test the stretch goals, once rows 15 to 28 have landed.
 
 | # | Check | How | Status |
 | --- | --- | --- | --- |
 | 8 | Keys act without Enter in a terminal | Run `uv run dungeon-explorer --seed 42` in a terminal. `w` `a` `s` `d` move straight away, `i` and `?` open their screens, any key goes back, and Ctrl-C quits cleanly. Piped input, as in check 3, still works. | |
 | 9 | The playing screen has a header and legend | The title shows at the top, every symbol on screen is in the legend, and the screen fits an 80-column terminal. | |
-| 10 | The title screen starts and exits games | The game opens on the title. New Game starts a game, and Exit quits. With `--seed 42`, the new game is seed 42. | |
-| 11 | The dungeon can be finished | The status shows `Level 1 of 5`. Going down the stairs on the last floor shows the win screen, then the title. | |
-| 12 | Monsters appear and chase | Monsters only show when they're in sight, and step towards the player when they can see them. Out of sight, they stay put. | |
-| 13 | Monsters can be fought | Walking into a monster hits it, and enough hits kill it. | |
-| 14 | Monsters hurt back, and the game can be lost | Standing next to a monster costs hit points, shown on the status line. At zero, the game over screen shows, then the title. | |
-| 15 | Settings change the game | Changing a setting in the TOML file, such as fewer floors or a smaller level, changes the game, and the fingerprint beside the seed changes with it. | |
-| 16 | The original checks still hold | Re-run checks 1 to 3 on the finished stretch goals, with input that starts a game from the title screen first. | |
+| 10 | The message log keeps and clears messages | Walk into a wall, then pick something up: both messages stay on screen, newest last. The clear key empties the log. | |
+| 11 | The title screen starts and exits games | The game opens on the title. New Game starts a game, and Exit quits. With `--seed 42`, the new game is seed 42. | |
+| 12 | The dungeon can be finished | The status shows `Level 1 of 5`. Going down the stairs on the last floor shows the win screen, then the title. | |
+| 13 | Monsters appear and chase | Monsters only show when they're in sight, and step towards the player when they can see them. Out of sight, they stay put. | |
+| 14 | Monsters can be fought | Walking into a monster hits it, and enough hits kill it. | |
+| 15 | Monsters hurt back, and the game can be lost | Standing next to a monster costs hit points, shown on the status line. At zero, the game over screen shows, then the title. | |
+| 16 | Settings change the game | Changing a setting in the TOML file, such as fewer floors or a smaller level, changes the game, and the fingerprint beside the seed changes with it. | |
+| 17 | The original checks still hold | Re-run checks 1 to 3 on the finished stretch goals, with input that starts a game from the title screen first. | |
 
 ## Acceptance criteria
 
@@ -123,5 +125,6 @@ The person added these after play-testing:
 - A title screen with New Game and Exit, as a new state that comes before playing.
 - A fixed number of floors, with the total in the legend (`Level 2 of 5`) and a way to finish on the last one. At the moment the dungeon goes on forever, so there's nothing to complete.
 - Saving and loading from a menu. Levels regenerate from the seed, so a save only needs the seed, the depth, the player's position and inventory, the explored tiles, and which items have been picked up on the current level.
+- A log that keeps past messages instead of replacing them, with a key to clear it. The person added this while trying row 15.
 
-The person chose every stretch goal except saving and loading, planned as rows 15 to 27, with checks 8 to 16.
+The person chose every stretch goal except saving and loading, planned as rows 15 to 28, with checks 8 to 17.
