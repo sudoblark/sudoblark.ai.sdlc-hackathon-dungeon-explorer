@@ -144,3 +144,72 @@ def test_stepping_back_onto_an_emptied_tile_picks_up_nothing_more():
 
     assert game.player.inventory == [POTION]
     assert game.message == ""
+
+
+def _on_the_stairs(seed: int) -> Game:
+    """A new game for `seed`, with the player moved onto the stairs down."""
+    game = Game.new(seed)
+    game.player.position = game.level.stairs_down
+    return game
+
+
+def test_going_down_the_stairs_starts_the_next_level():
+    game = _on_the_stairs(seed=42)
+
+    game.descend()
+
+    assert game.depth == 2
+    assert game.level == generate_level(42, depth=2)
+    assert game.player.position == game.level.player_start
+    assert game.message == "You go down the stairs to level 2."
+
+
+def test_each_flight_of_stairs_goes_one_level_deeper():
+    game = _on_the_stairs(seed=42)
+    game.descend()
+    game.player.position = game.level.stairs_down
+
+    game.descend()
+
+    assert game.depth == 3
+    assert game.level == generate_level(42, depth=3)
+
+
+def test_going_down_the_stairs_keeps_the_inventory():
+    game = _on_the_stairs(seed=42)
+    game.player.inventory = [POTION, GOLD]
+
+    game.descend()
+
+    assert game.player.inventory == [POTION, GOLD]
+
+
+def test_the_next_level_is_the_same_whatever_happened_on_this_one():
+    straight_down = _on_the_stairs(seed=42)
+    wandered = Game.new(seed=42)
+    # Seed 42 has a potion at (40, 13): walk around, then step onto it.
+    for direction in Direction:
+        wandered.move(direction)
+    wandered.player.position = (41, 13)
+    wandered.move(Direction.WEST)
+    assert wandered.player.inventory == [POTION]
+    wandered.player.position = wandered.level.stairs_down
+
+    straight_down.descend()
+    wandered.descend()
+
+    assert wandered.level == straight_down.level
+
+
+def test_going_down_is_refused_away_from_the_stairs():
+    game = Game.new(seed=42)
+    level = game.level
+    start = game.player.position
+    assert start != level.stairs_down
+
+    game.descend()
+
+    assert game.depth == 1
+    assert game.level is level
+    assert game.player.position == start
+    assert game.message == "There are no stairs down here."

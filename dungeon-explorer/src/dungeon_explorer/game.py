@@ -50,6 +50,20 @@ class Game:
         self.message = ""
         self._pick_up()
 
+    def descend(self) -> None:
+        """Go down to the next level, if the player is standing on the stairs.
+
+        The new level comes from the same seed, so it's the same whatever
+        happened on the levels above. The player keeps their inventory.
+        """
+        if self.player.position != self.level.stairs_down:
+            self.message = "There are no stairs down here."
+            return
+        self.depth += 1
+        self.level = generate_level(self.seed, self.depth)
+        self.player.position = self.level.player_start
+        self.message = f"You go down the stairs to level {self.depth}."
+
     def _pick_up(self) -> None:
         """Move any item under the player off the level and into their inventory."""
         item = self.level.items.pop(self.player.position, None)
