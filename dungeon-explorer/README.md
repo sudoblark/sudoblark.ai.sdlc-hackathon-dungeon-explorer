@@ -14,7 +14,7 @@ uv sync
 
 Start a game from this folder. Pass a seed to play a particular dungeon, or leave it out for a random one. Either way, the seed is shown at the top of the screen, so you can play the same dungeon again.
 
-Each dungeon has between 3 and 7 floors, depending on its seed, and the top of the screen shows which one you're on, such as `Level 2 of 5`. Find the stairs on every floor to go deeper: the last floor's stairs lead out of the dungeon.
+Each dungeon has between 3 and 7 floors, depending on its seed, and the top of the screen shows which one you're on, such as `Level 2 of 5`. Find the stairs on every floor to go deeper: the last floor's stairs lead out of the dungeon, and out is how you win.
 
 ```bash
 uv run dungeon-explorer --seed 42

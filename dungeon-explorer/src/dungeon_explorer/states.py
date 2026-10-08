@@ -107,6 +107,8 @@ class PlayingState(_InGameState):
             command.execute(self.game)
         elif key:
             self.game.say(f"Unknown command {text.strip()!r}. Press ? for help.")
+        if self.game.finished:
+            return WinState(self.game)
         return self
 
 
@@ -149,6 +151,31 @@ class HelpState(_InGameState):
 
     def handle(self, text: str) -> State | None:
         return PlayingState(self.game)
+
+
+class WinState(_InGameState):
+    """The player has found their way out of the dungeon."""
+
+    def draw(self) -> list[str]:
+        game = self.game
+        inventory = game.player.inventory
+        items = [f"  {item.glyph} {item.name}" for item in inventory]
+        return [
+            "You escaped the dungeon!",
+            "",
+            f"You made it through all {game.floors} floors of seed {game.seed},"
+            " carrying:",
+            *(items or ["  nothing at all."]),
+            "",
+            "Press any key to finish.",
+        ]
+
+    def handle(self, text: str) -> State | None:
+        return None
+
+    def goodbye(self) -> str:
+        game = self.game
+        return f"Goodbye! You escaped all {game.floors} floors of seed {game.seed}."
 
 
 @dataclass

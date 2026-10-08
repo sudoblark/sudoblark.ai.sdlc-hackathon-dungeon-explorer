@@ -13,6 +13,7 @@ from dungeon_explorer.states import (
     InventoryState,
     LogState,
     PlayingState,
+    WinState,
 )
 
 POTION = Item("potion", "!")
@@ -274,3 +275,64 @@ def test_any_other_key_on_the_log_screen_goes_back_to_playing(text):
     assert isinstance(back, PlayingState)
     assert back.game is log.game
     assert log.game == before
+
+
+def _on_the_last_stairs(seed: int) -> Game:
+    """A new game for `seed`, taken down to its last floor and onto the stairs."""
+    game = Game.new(seed)
+    while game.depth < game.floors:
+        game.player.position = game.level.stairs_down
+        game.descend()
+    game.player.position = game.level.stairs_down
+    return game
+
+
+def test_going_down_the_last_stairs_shows_the_win_screen():
+    # Seed 1's dungeon has three floors.
+    game = _on_the_last_stairs(seed=1)
+
+    won = PlayingState(game).handle(">")
+
+    assert isinstance(won, WinState)
+    assert won.game is game
+
+
+def test_stairs_before_the_last_floor_stay_on_the_playing_screen():
+    game = Game.new(seed=1)
+    game.player.position = game.level.stairs_down
+    playing = PlayingState(game)
+
+    assert playing.handle(">") is playing
+    assert game.depth == 2
+
+
+def test_the_win_screen_says_how_deep_and_what_was_carried_out():
+    game = _on_the_last_stairs(seed=1)
+    game.player.inventory = [POTION, GOLD]
+
+    assert WinState(game).draw() == [
+        "You escaped the dungeon!",
+        "",
+        "You made it through all 3 floors of seed 1, carrying:",
+        "  ! potion",
+        "  $ gold",
+        "",
+        "Press any key to finish.",
+    ]
+
+
+def test_the_win_screen_says_when_nothing_was_carried_out():
+    game = _on_the_last_stairs(seed=1)
+
+    assert WinState(game).draw()[3] == "  nothing at all."
+
+
+@pytest.mark.parametrize("text", ["", "q", "w"])
+def test_any_key_on_the_win_screen_ends_the_game(text):
+    assert WinState(_on_the_last_stairs(seed=1)).handle(text) is None
+
+
+def test_the_win_screen_says_goodbye_with_the_floors_escaped():
+    game = _on_the_last_stairs(seed=1)
+
+    assert WinState(game).goodbye() == "Goodbye! You escaped all 3 floors of seed 1."

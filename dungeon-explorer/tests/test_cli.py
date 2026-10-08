@@ -172,3 +172,19 @@ def test_ctrl_c_interrupts_as_it_does_at_a_prompt():
 def test_ctrl_d_or_a_closed_terminal_ends_the_input(raw):
     with pytest.raises(EOFError):
         _key_from(raw)
+
+
+def test_finishing_the_dungeon_ends_the_loop_on_the_win_screen():
+    # Seed 1's dungeon has three floors: walk it with the stairs.
+    game = Game.new(seed=1)
+    while game.depth < game.floors:
+        game.player.position = game.level.stairs_down
+        game.descend()
+    game.player.position = game.level.stairs_down
+    drawn: list[str] = []
+
+    game_loop(PlayingState(game), _script(">", "x", "never read"), drawn.append)
+
+    assert drawn[1].startswith("You escaped the dungeon!")
+    assert drawn[-1] == "Goodbye! You escaped all 3 floors of seed 1."
+    assert len(drawn) == 3  # playing, win, goodbye
