@@ -2,17 +2,21 @@ import pytest
 
 from dungeon_explorer.game import Game, Player
 from dungeon_explorer.generate import generate_level
-from dungeon_explorer.level import Direction, Item, Level, Point, Tile
+from dungeon_explorer.level import Direction, Item, Level, Point, Room, Tile
 
 POTION = Item("potion", "!")
 GOLD = Item("gold", "$")
 
 
-def _level(*rows: str, items: dict[Point, Item] | None = None) -> Level:
+def _level(
+    *rows: str,
+    rooms: list[Room] | None = None,
+    items: dict[Point, Item] | None = None,
+) -> Level:
     """A hand-built level from rows of # and ., with only `items` placed on it."""
     return Level(
         tiles=[[Tile(glyph) for glyph in row] for row in rows],
-        rooms=[],
+        rooms=list(rooms or []),
         player_start=(0, 0),
         stairs_down=(0, 0),
         items=dict(items or {}),
@@ -213,3 +217,76 @@ def test_going_down_is_refused_away_from_the_stairs():
     assert game.level is level
     assert game.player.position == start
     assert game.message == "There are no stairs down here."
+
+
+# Two rooms joined by a corridor through doors at (4, 2) and (6, 2).
+WEST_ROOM = Room(x=1, y=1, width=3, height=3)
+EAST_ROOM = Room(x=7, y=1, width=3, height=3)
+TWO_ROOMS = _level(
+    "###########",
+    "#...###...#",
+    "#.........#",
+    "#...###...#",
+    "###########",
+    rooms=[WEST_ROOM, EAST_ROOM],
+)
+
+
+def _seen(room: Room) -> set[Point]:
+    return set(room.tiles()) | set(room.walls())
+
+
+def test_the_room_the_player_starts_in_is_explored_walls_and_all():
+    game = _game(TWO_ROOMS, position=(2, 2))
+
+    assert _seen(WEST_ROOM) <= game.explored
+    assert not set(EAST_ROOM.tiles()) & game.explored
+
+
+def test_walking_a_corridor_reveals_the_tiles_around_each_step():
+    game = _game(TWO_ROOMS, position=(2, 2))
+
+    for _ in range(3):
+        game.move(Direction.EAST)
+
+    assert game.player.position == (5, 2)
+    assert {(6, 1), (6, 2), (6, 3)} <= game.explored
+    assert not set(EAST_ROOM.tiles()) & game.explored
+
+
+def test_stepping_into_a_room_reveals_all_of_it():
+    game = _game(TWO_ROOMS, position=(2, 2))
+
+    for _ in range(5):
+        game.move(Direction.EAST)
+
+    assert game.player.position == (7, 2)
+    assert _seen(EAST_ROOM) <= game.explored
+
+
+def test_rooms_the_player_hasnt_visited_stay_unexplored():
+    game = Game.new(seed=42)
+
+    start_room, *other_rooms = game.level.rooms
+    assert _seen(start_room) <= game.explored
+    for room in other_rooms:
+        assert not set(room.tiles()) & game.explored, room
+
+
+def test_a_new_level_starts_with_only_its_first_room_explored():
+    game = _on_the_stairs(seed=42)
+
+    game.descend()
+
+    assert game.explored == _seen(game.level.rooms[0])
+
+
+def test_exploring_stops_at_the_edge_of_the_level():
+    open_ground = _level(
+        "...",
+        "...",
+    )
+
+    game = _game(open_ground, position=(0, 0))
+
+    assert game.explored == {(0, 0), (1, 0), (0, 1), (1, 1)}

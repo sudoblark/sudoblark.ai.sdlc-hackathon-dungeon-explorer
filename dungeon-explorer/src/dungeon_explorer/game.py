@@ -22,6 +22,7 @@ class Player:
 class Game:
     """Everything about a game in play.
 
+    `explored` holds every tile of this level the player has seen, and
     `message` says what happened on the last turn, for showing to the player.
     """
 
@@ -29,7 +30,11 @@ class Game:
     level: Level
     player: Player
     depth: int = 1
+    explored: set[Point] = field(default_factory=set)
     message: str = ""
+
+    def __post_init__(self) -> None:
+        self._explore()
 
     @classmethod
     def new(cls, seed: int) -> Self:
@@ -49,6 +54,7 @@ class Game:
         self.player.position = target
         self.message = ""
         self._pick_up()
+        self._explore()
 
     def descend(self) -> None:
         """Go down to the next level, if the player is standing on the stairs.
@@ -62,6 +68,8 @@ class Game:
         self.depth += 1
         self.level = generate_level(self.seed, self.depth)
         self.player.position = self.level.player_start
+        self.explored = set()
+        self._explore()
         self.message = f"You go down the stairs to level {self.depth}."
 
     def _pick_up(self) -> None:
@@ -72,9 +80,25 @@ class Game:
         self.player.inventory.append(item)
         self.message = f"You pick up the {item.name}."
 
+    def _explore(self) -> None:
+        """Reveal what the player can see from where they stand.
+
+        That's the whole of the room they're in, walls and all, and the eight
+        tiles around them, which maps corridors as they're walked.
+        """
+        position = self.player.position
+        for room in self.level.rooms:
+            if position in room.tiles():
+                self.explored.update(room.tiles())
+                self.explored.update(room.walls())
+        x, y = position
+        around = [(x + dx, y + dy) for dy in (-1, 0, 1) for dx in (-1, 0, 1)]
+        self.explored.update(tile for tile in around if self._on_level(tile))
+
     def _is_floor(self, point: Point) -> bool:
         """Whether `point` is on the level and is floor, so it can be walked on."""
+        return self._on_level(point) and self.level.tile(*point) is Tile.FLOOR
+
+    def _on_level(self, point: Point) -> bool:
         x, y = point
-        level = self.level
-        on_level = 0 <= x < level.width and 0 <= y < level.height
-        return on_level and level.tile(x, y) is Tile.FLOOR
+        return 0 <= x < self.level.width and 0 <= y < self.level.height
