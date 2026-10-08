@@ -239,3 +239,43 @@ damage = 1
         "the wall-crawler can't use '#', which is taken, so it's skipped",
         "the ghost can't use '!', which is taken, so it's skipped",
     ]
+
+
+def test_the_same_settings_always_give_the_same_fingerprint():
+    assert Settings().fingerprint == DEFAULT_SETTINGS.fingerprint
+    # Pinned, so a change to the defaults can't go unnoticed by replays.
+    assert DEFAULT_SETTINGS.fingerprint == "546d8c"
+
+
+@pytest.mark.parametrize(
+    "changed",
+    [
+        Settings(min_floors=2),
+        Settings(level_width=60),
+        Settings(room_widths=(4, 11)),
+        Settings(view_height=13),
+        Settings(log_lines=4),
+        Settings(items=DEFAULT_SETTINGS.items[:-1]),
+        Settings(
+            monsters=(
+                (Monster("rat", "r", hit_points=3, damage=1), 1),
+                *DEFAULT_SETTINGS.monsters[1:],
+            )
+        ),
+    ],
+)
+def test_any_change_to_the_settings_changes_the_fingerprint(changed):
+    assert changed.fingerprint != DEFAULT_SETTINGS.fingerprint
+
+
+def test_a_fingerprint_is_six_hex_characters():
+    fingerprint = Settings(max_floors=9).fingerprint
+
+    assert len(fingerprint) == 6
+    assert set(fingerprint) <= set("0123456789abcdef")
+
+
+def test_a_settings_file_matching_the_defaults_has_the_default_fingerprint():
+    settings, _ = load_settings(SHIPPED)
+
+    assert settings.fingerprint == DEFAULT_SETTINGS.fingerprint

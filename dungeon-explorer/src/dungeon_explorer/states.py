@@ -159,7 +159,7 @@ class _InGameState(State):
 
     def goodbye(self) -> str:
         game = self.game
-        return f"Goodbye! You reached level {game.depth} of seed {game.seed}."
+        return f"Goodbye! You reached level {game.depth} of {_seed(game)}."
 
 
 class PlayingState(_InGameState):
@@ -189,6 +189,7 @@ class PlayingState(_InGameState):
             # The menu sits at the panels' right edge, but never touches the title.
             TITLE + MENU.rjust(max(width - len(TITLE), len(MENU) + 2)),
             f"Level {game.depth} of {game.floors}   Seed {game.seed}"
+            f" (settings {game.settings.fingerprint})"
             f"   HP {game.player.hit_points}/{PLAYER_HIT_POINTS}",
             *beside,
             *[""] * (log_lines - len(newest)),
@@ -288,7 +289,7 @@ class WinState(_InGameState):
 
     def goodbye(self) -> str:
         game = self.game
-        return f"Goodbye! You escaped all {game.floors} floors of seed {game.seed}."
+        return f"Goodbye! You escaped all {game.floors} floors of {_seed(game)}."
 
 
 class GameOverState(_InGameState):
@@ -312,7 +313,7 @@ class GameOverState(_InGameState):
 
     def goodbye(self) -> str:
         game = self.game
-        return f"Goodbye! You died on level {game.depth} of seed {game.seed}."
+        return f"Goodbye! You died on level {game.depth} of {_seed(game)}."
 
 
 class LeaveState(_InGameState):
@@ -378,6 +379,12 @@ def legend(settings: Settings) -> list[tuple[str, str]]:
         *((item.glyph, item.name) for item, _ in settings.items),
         *((monster.glyph, monster.name) for monster, _ in settings.monsters),
     ]
+
+
+def _seed(game: Game) -> str:
+    """The game's seed and settings fingerprint, which together say which
+    dungeon it was."""
+    return f"seed {game.seed} (settings {game.settings.fingerprint})"
 
 
 def _carried(game: Game) -> list[str]:

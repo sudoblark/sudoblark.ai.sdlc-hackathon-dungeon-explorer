@@ -61,6 +61,8 @@ uv run dungeon-explorer --settings hard.toml
 
 A mistake in the file, such as a misspelt key or a number that's too small, is listed on the title screen, and that value keeps its default, so the game always starts.
 
+Beside the seed, the top of the screen shows a six-character fingerprint of the settings, such as `Seed 42 (settings 546d8c)`, which is the defaults' fingerprint. The same seed and fingerprint always give the same dungeon, so to replay someone's game, use their seed and check the fingerprint matches.
+
 ## Running the checks
 
 ```bash

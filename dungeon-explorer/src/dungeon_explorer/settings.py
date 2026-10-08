@@ -1,8 +1,10 @@
 """Everything about the game a settings file can change, its defaults, and
 reading it from a TOML file."""
 
+import hashlib
+import json
 import tomllib
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Annotated, Any, Self
 
@@ -61,6 +63,15 @@ class Settings:
     view_height: int = 15
     # How many of the newest messages show under the map.
     log_lines: int = 3
+
+    @property
+    def fingerprint(self) -> str:
+        """Six characters that change whenever any setting does, so a replay
+        can tell it has the same settings: the same seed and fingerprint
+        always give the same dungeon."""
+        # Sorted JSON is the same on every machine and Python version.
+        text = json.dumps(asdict(self), sort_keys=True)
+        return hashlib.sha256(text.encode()).hexdigest()[:6]
 
 
 DEFAULT_SETTINGS = Settings()

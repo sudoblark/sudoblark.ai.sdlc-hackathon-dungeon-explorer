@@ -21,6 +21,8 @@ from dungeon_explorer.states import (
     legend,
 )
 
+# The fingerprint of the default settings, which every game here uses.
+FP = DEFAULT_SETTINGS.fingerprint
 POTION = Item("potion", "!")
 GOLD = Item("gold", "$")
 
@@ -44,7 +46,9 @@ def test_playing_draws_a_header_the_panels_with_a_legend_and_the_log():
     view, mini_map = draw_view(game), draw_mini_map(game)
     menu = "i items  p drink  l log  c clear  ? help  q leave"
     assert lines[0] == "DUNGEON EXPLORER" + " " * 3 + menu
-    assert lines[1] == f"Level 1 of {floor_count(42)}   Seed 42   HP 20/20"
+    assert (
+        lines[1] == f"Level 1 of {floor_count(42)}   Seed 42 (settings {FP})   HP 20/20"
+    )
     assert lines[2] == "+- View " + "-" * 24 + "+ +- Map " + "-" * 26 + "+"
     key = ["Key", "@ you", "# wall", ". floor", "> stairs"]
     key += ["! potion", "$ gold", "? scroll", ") dagger", "/ sword", "\\ axe"]
@@ -199,7 +203,10 @@ def test_any_input_on_the_inventory_or_help_goes_back_to_playing(screen, text):
 def test_every_screen_of_a_game_says_goodbye_with_its_level_and_seed(screen):
     game = Game.new(seed=42)
 
-    assert screen(game).goodbye() == "Goodbye! You reached level 1 of seed 42."
+    assert (
+        screen(game).goodbye()
+        == f"Goodbye! You reached level 1 of seed 42 (settings {FP})."
+    )
 
 
 def test_the_inventory_and_help_open_on_the_same_game():
@@ -345,7 +352,10 @@ def test_any_key_on_the_win_screen_ends_the_game(text):
 def test_the_win_screen_says_goodbye_with_the_floors_escaped():
     game = _on_the_last_stairs(seed=1)
 
-    assert WinState(game).goodbye() == "Goodbye! You escaped all 3 floors of seed 1."
+    assert (
+        WinState(game).goodbye()
+        == f"Goodbye! You escaped all 3 floors of seed 1 (settings {FP})."
+    )
 
 
 def _title(seed: int | None = None) -> TitleState:
@@ -612,7 +622,10 @@ def test_any_key_on_the_game_over_screen_goes_back_to_the_title():
 def test_the_game_over_screen_says_goodbye_with_the_level_and_seed():
     game = _about_to_die()
 
-    assert GameOverState(game).goodbye() == "Goodbye! You died on level 1 of seed 1."
+    assert (
+        GameOverState(game).goodbye()
+        == f"Goodbye! You died on level 1 of seed 1 (settings {FP})."
+    )
 
 
 def test_the_playing_screen_takes_its_sizes_and_legend_from_the_settings():

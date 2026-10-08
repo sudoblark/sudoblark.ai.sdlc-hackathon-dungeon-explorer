@@ -1,4 +1,3 @@
-import re
 from collections.abc import Callable
 
 import pytest
@@ -9,12 +8,17 @@ from dungeon_explorer.cli import CLEAR_SCREEN, _key_from, game_loop, main
 from dungeon_explorer.game import Game
 from dungeon_explorer.generate import floor_count
 from dungeon_explorer.level import Monster
+from dungeon_explorer.settings import DEFAULT_SETTINGS, Settings
 from dungeon_explorer.states import InventoryState, PlayingState
 
 # Piped input for the menus: an empty line is Enter.
 START = ("", "")  # New game, keeping the seed already filled in
 LEAVE = ("q", "y")  # leave the game for the title screen
 EXIT = ("s", "")  # move down to Exit and pick it
+
+# The fingerprint of the default settings, and of two-floor settings.
+FP = DEFAULT_SETTINGS.fingerprint
+TWO_FLOORS = Settings(min_floors=2, max_floors=2).fingerprint
 
 ROOM = level_from(
     "#####",
@@ -58,7 +62,7 @@ def test_leaving_a_game_says_goodbye_with_the_level_and_seed():
 
     game_loop(PlayingState(game), _script(*LEAVE), drawn.append)
 
-    assert drawn[-1] == "Goodbye! You reached level 1 of seed 42."
+    assert drawn[-1] == f"Goodbye! You reached level 1 of seed 42 (settings {FP})."
 
 
 def test_the_loop_stops_when_the_input_runs_out():
@@ -104,7 +108,10 @@ def test_a_new_game_plays_the_seed_given_on_the_command_line(monkeypatch, capsys
     code, out = _play(monkeypatch, capsys, ["--seed", "42"], *script)
 
     assert code == 0
-    assert f"Level 1 of {floor_count(42)}   Seed 42   HP 20/20" in out.splitlines()
+    assert (
+        f"Level 1 of {floor_count(42)}   Seed 42 (settings {FP})   HP 20/20"
+        in out.splitlines()
+    )
     assert out.strip().endswith("Goodbye!")
 
 
@@ -114,7 +121,10 @@ def test_a_typed_seed_replaces_the_one_filled_in(monkeypatch, capsys):
 
     _, out = _play(monkeypatch, capsys, ["--seed", "42"], *script)
 
-    assert f"Level 1 of {floor_count(7)}   Seed 7   HP 20/20" in out.splitlines()
+    assert (
+        f"Level 1 of {floor_count(7)}   Seed 7 (settings {FP})   HP 20/20"
+        in out.splitlines()
+    )
 
 
 def test_the_same_seed_draws_the_same_game(monkeypatch, capsys):
@@ -133,9 +143,10 @@ def test_without_a_seed_the_command_picks_one_and_shows_it(monkeypatch, capsys):
     _, out = _play(monkeypatch, capsys, [], *START, "d")
 
     assert (
-        f"Level 1 of {floor_count(123456)}   Seed 123456   HP 20/20" in out.splitlines()
+        f"Level 1 of {floor_count(123456)}   Seed 123456 (settings {FP})   HP 20/20"
+        in out.splitlines()
     )
-    assert re.search(r"Goodbye! You reached level 1 of seed 123456\.$", out.strip())
+    assert out.strip().endswith(f"You reached level 1 of seed 123456 (settings {FP}).")
 
 
 def test_a_seed_must_be_a_whole_number(capsys):
@@ -167,7 +178,10 @@ def test_in_a_terminal_the_command_reads_single_keys(monkeypatch, capsys):
     monkeypatch.setattr("builtins.input", _refuse)
 
     assert main(["--seed", "42"]) == 0
-    assert "Goodbye! You reached level 1 of seed 42." in capsys.readouterr().out
+    assert (
+        f"Goodbye! You reached level 1 of seed 42 (settings {FP})."
+        in capsys.readouterr().out
+    )
 
 
 def test_piped_input_is_read_a_line_at_a_time(monkeypatch, capsys):
@@ -176,7 +190,10 @@ def test_piped_input_is_read_a_line_at_a_time(monkeypatch, capsys):
     monkeypatch.setattr("builtins.input", _script(*START, "d"))
 
     assert main(["--seed", "42"]) == 0
-    assert "Goodbye! You reached level 1 of seed 42." in capsys.readouterr().out
+    assert (
+        f"Goodbye! You reached level 1 of seed 42 (settings {FP})."
+        in capsys.readouterr().out
+    )
 
 
 @pytest.mark.parametrize(
@@ -224,7 +241,7 @@ def test_finishing_the_dungeon_ends_the_loop_on_the_win_screen():
     game_loop(PlayingState(game), _script(">", "x", "never read"), drawn.append)
 
     assert drawn[1].startswith("You escaped the dungeon!")
-    assert drawn[-1] == "Goodbye! You escaped all 3 floors of seed 1."
+    assert drawn[-1] == f"Goodbye! You escaped all 3 floors of seed 1 (settings {FP})."
     assert len(drawn) == 3  # playing, win, goodbye
 
 
@@ -238,7 +255,7 @@ def test_dying_ends_the_loop_on_the_game_over_screen():
     game_loop(PlayingState(game), _script("d", "x", "never read"), drawn.append)
 
     assert drawn[1].startswith("You died.")
-    assert drawn[-1] == "Goodbye! You died on level 1 of seed 1."
+    assert drawn[-1] == f"Goodbye! You died on level 1 of seed 1 (settings {FP})."
     assert len(drawn) == 3  # playing, game over, goodbye
 
 
@@ -251,7 +268,9 @@ def test_the_command_plays_with_the_settings_file_it_is_given(
 
     _, out = _play(monkeypatch, capsys, argv, *START, *LEAVE, *EXIT)
 
-    assert "Level 1 of 2   Seed 42   HP 20/20" in out.splitlines()
+    assert (
+        f"Level 1 of 2   Seed 42 (settings {TWO_FLOORS})   HP 20/20" in out.splitlines()
+    )
 
 
 def test_settings_toml_in_the_folder_is_read_without_asking(
@@ -264,7 +283,9 @@ def test_settings_toml_in_the_folder_is_read_without_asking(
 
     _, out = _play(monkeypatch, capsys, ["--seed", "42"], *START, *LEAVE, *EXIT)
 
-    assert "Level 1 of 2   Seed 42   HP 20/20" in out.splitlines()
+    assert (
+        f"Level 1 of 2   Seed 42 (settings {TWO_FLOORS})   HP 20/20" in out.splitlines()
+    )
 
 
 def test_problems_with_the_settings_show_on_the_title_screen(
