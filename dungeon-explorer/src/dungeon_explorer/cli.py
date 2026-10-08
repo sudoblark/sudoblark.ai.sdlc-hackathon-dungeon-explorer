@@ -15,7 +15,7 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
-from dungeon_explorer.settings import load_settings
+from dungeon_explorer.settings import load_settings, load_settings_code
 from dungeon_explorer.states import State, TitleState
 
 PROMPT = "> "
@@ -67,15 +67,25 @@ def main(argv: list[str] | None = None) -> int:
         help="fill in the seed for a new game; the same seed always gives the "
         "same dungeon (default: a random one, shown on screen)",
     )
-    parser.add_argument(
+    # One or the other: a code already holds every setting it changes.
+    choice = parser.add_mutually_exclusive_group()
+    choice.add_argument(
         "--settings",
         type=Path,
         help=f"the settings file to play with (default: {SETTINGS_FILE}, if there "
         "is one; otherwise the built-in settings)",
     )
+    choice.add_argument(
+        "--settings-code",
+        metavar="CODE",
+        help="play with the settings a code from the end of another game gives",
+    )
     args = parser.parse_args(argv)
-    path = args.settings or SETTINGS_FILE
-    settings, warnings = load_settings(path, required=args.settings is not None)
+    if args.settings_code is not None:
+        settings, warnings = load_settings_code(args.settings_code)
+    else:
+        path = args.settings or SETTINGS_FILE
+        settings, warnings = load_settings(path, required=args.settings is not None)
     title = TitleState(
         args.seed,
         lambda: random.randrange(RANDOM_SEEDS),

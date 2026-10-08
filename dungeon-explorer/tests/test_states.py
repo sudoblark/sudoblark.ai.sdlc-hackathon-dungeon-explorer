@@ -682,3 +682,40 @@ def test_the_header_keeps_the_title_and_menu_apart_on_a_narrow_view():
     assert (
         header == "DUNGEON EXPLORER  i items  p drink  l log  c clear  ? help  q leave"
     )
+
+
+def _with_settings(game: Game, settings: Settings) -> Game:
+    game.settings = settings
+    return game
+
+
+def test_the_end_screens_show_how_to_replay_settings_that_arent_the_defaults():
+    settings = Settings(min_floors=3, max_floors=3)
+    won = WinState(_with_settings(_on_the_last_stairs(seed=1), settings))
+    lost = GameOverState(_with_settings(_about_to_die(), settings))
+
+    for screen in (won, lost):
+        lines = screen.draw()
+        assert lines[-4:] == [
+            "Replay these settings with:",
+            f"--settings-code {settings.code}",
+            "",
+            "Press any key to go back to the title.",
+        ]
+
+
+def test_the_end_screens_have_no_replay_code_with_the_default_settings():
+    lines = WinState(_on_the_last_stairs(seed=1)).draw()
+
+    assert "Replay these settings with:" not in lines
+
+
+def test_goodbyes_add_the_replay_code_for_settings_that_arent_the_defaults():
+    settings = Settings(min_floors=3, max_floors=3)
+    game = _with_settings(Game.new(seed=42), settings)
+
+    assert PlayingState(game).goodbye().splitlines() == [
+        f"Goodbye! You reached level 1 of seed 42 (settings {settings.fingerprint}).",
+        "Replay these settings with:",
+        f"--settings-code {settings.code}",
+    ]

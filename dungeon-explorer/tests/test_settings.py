@@ -1,10 +1,18 @@
+import base64
+import json
+import zlib
 from pathlib import Path
 
 import pytest
 
 from dungeon_explorer.game import Game
 from dungeon_explorer.level import Item, Monster
-from dungeon_explorer.settings import DEFAULT_SETTINGS, Settings, load_settings
+from dungeon_explorer.settings import (
+    DEFAULT_SETTINGS,
+    Settings,
+    load_settings,
+    load_settings_code,
+)
 
 
 def test_the_defaults_are_the_game_as_it_has_always_been():
@@ -279,3 +287,89 @@ def test_a_settings_file_matching_the_defaults_has_the_default_fingerprint():
     settings, _ = load_settings(SHIPPED)
 
     assert settings.fingerprint == DEFAULT_SETTINGS.fingerprint
+
+
+def _encode(data: object) -> str:
+    """A settings code for any data, made the way Settings.code makes them."""
+    packed = zlib.compress(json.dumps(data).encode())
+    return base64.urlsafe_b64encode(packed).decode().rstrip("=")
+
+
+def _decode(code: str) -> object:
+    packed = base64.urlsafe_b64decode(code + "=" * (-len(code) % 4))
+    return json.loads(zlib.decompress(packed))
+
+
+def test_the_default_settings_need_no_code():
+    assert DEFAULT_SETTINGS.code is None
+
+
+@pytest.mark.parametrize(
+    "settings",
+    [
+        Settings(min_floors=2, max_floors=2),
+        Settings(level_width=40, level_height=20, room_widths=(3, 8)),
+        Settings(log_lines=5, view_width=21),
+        Settings(items=((Item("gem", "*"), 2),)),
+        Settings(
+            monsters=(
+                (Monster("bat", "b", hit_points=1, damage=1), 1),
+                (Monster("troll", "T", hit_points=12, damage=4), 3),
+            )
+        ),
+    ],
+)
+def test_a_code_gives_back_the_same_settings_and_fingerprint(settings):
+    back, warnings = load_settings_code(settings.code)
+
+    assert warnings == []
+    assert back == settings
+    assert back.fingerprint == settings.fingerprint
+
+
+def test_a_code_holds_only_what_differs_from_the_defaults():
+    settings = Settings(max_floors=9, log_lines=4)
+
+    assert _decode(settings.code) == {
+        "dungeon": {"max_floors": 9},
+        "screen": {"log_lines": 4},
+    }
+
+
+def test_a_small_change_gives_a_short_code():
+    assert len(Settings(min_floors=2, max_floors=2).code) < 80
+
+
+@pytest.mark.parametrize(
+    "code",
+    [
+        "not-a-code",
+        "",
+        Settings(max_floors=9).code[:-6],  # cut short
+        _encode(["a", "list"]),  # not a settings table
+        base64.urlsafe_b64encode(zlib.compress(b"not json")).decode(),
+    ],
+)
+def test_a_code_that_cant_be_read_falls_back_to_the_defaults(code):
+    assert load_settings_code(code) == (
+        DEFAULT_SETTINGS,
+        ["the settings code can't be read, so the defaults are used"],
+    )
+
+
+def test_a_code_with_a_mistake_in_it_warns_like_a_file():
+    code = _encode({"screen": {"log_lines": 0, "view_width": 21}})
+
+    settings, warnings = load_settings_code(code)
+
+    assert settings == Settings(view_width=21)
+    assert warnings[0].startswith("[screen] log_lines: ")
+
+
+def test_a_code_that_would_expand_too_far_is_refused():
+    code = base64.urlsafe_b64encode(zlib.compress(b" " * 200_000)).decode()
+
+    settings, warnings = load_settings_code(code)
+
+    assert settings == DEFAULT_SETTINGS
+    assert warnings == ["the settings code can't be read, so the defaults are used"]

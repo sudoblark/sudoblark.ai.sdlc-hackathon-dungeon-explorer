@@ -52,7 +52,7 @@ A turn-based dungeon explorer drawn in ASCII in the terminal. Each level is gene
 
 ### Stretch goals
 
-Rows 15 to 30 are stretch goals, added once every acceptance criterion was met.
+Rows 15 to 31 are stretch goals, added once every acceptance criterion was met.
 
 | # | Commit message | What it covers | Status |
 | --- | --- | --- | --- |
@@ -71,7 +71,8 @@ Rows 15 to 30 are stretch goals, added once every acceptance criterion was met.
 | 27 | `feat(states): show a game over screen at zero hit points (TKT-05)` | At zero hit points the game shows a game over screen, and any key goes back to the title. Tests: the transition and what it draws. | ✅ |
 | 28 | `refactor(settings): gather the settings into one object (TKT-05)` | A frozen `Settings` holding everything a settings file will be able to change, with today's values as its defaults: the level size, rooms, items, monsters (with their hit points and damage), the fewest and most floors, the view size and the number of log lines. It's passed through generation, the game, rendering and the screens instead of each reading its own constants. No change in behaviour; the person split this out of reading TOML so each commit can be reviewed on its own. Tests: the defaults match today's values, and a game made with other settings uses them. | ✅ |
 | 29 | `feat(settings): read the game's settings from a TOML file (TKT-05)` | `settings.toml` in the folder the game runs from, or the file `--settings` names, read with `tomllib`. The person chose `[dungeon]`, `[level]` and `[screen]` tables and a `[[items]]` or `[[monsters]]` block for each kind; a file sets only the keys it wants changed, and giving any `[[items]]` or `[[monsters]]` replaces that list. A shipped `settings.toml` writes out every default. A mistake, such as an unknown key, a wrong type or more min floors than max, gives a warning and the default for that value, which the person chose over refusing to start. The person chose showing warnings under the title screen's menu, since the title screen clears anything printed before it, and checking the file with Pydantic models over hand-written checks. Tests: the defaults, overriding a setting, the shipped file matching the defaults, and each kind of mistake falling back with a warning. | ✅ |
-| 30 | `feat(settings): show which settings a seed was played with (TKT-05)` | A short fingerprint of the settings beside the seed, on screen and in the goodbye line, so a replay can tell it has the same settings. Tests: the same settings give the same fingerprint, and any change gives a different one. | |
+| 30 | `feat(settings): show which settings a seed was played with (TKT-05)` | A short fingerprint of the settings beside the seed, on screen and in the goodbye line, so a replay can tell it has the same settings. Tests: the same settings give the same fingerprint, and any change gives a different one. | ✅ |
+| 31 | `feat(settings): share settings as a code to paste (TKT-05)` | A settings code holding only the values that differ from the defaults, in the settings file's shape, as compact JSON compressed with zlib and encoded as URL-safe base64. The win and game over screens and the goodbyes that name a seed show it when the settings aren't the defaults, and `--settings-code CODE` plays with those settings instead of a file. A code goes through the same checks as a file, so a mangled one warns on the title screen and falls back to the defaults. The person asked for this because a fingerprint can't recreate the settings it came from. Tests: a code gives back the same settings and fingerprint, the defaults have no code, a mangled code warns, and `--settings-code` plays the settings. | |
 
 ## Post-commit testing
 
@@ -87,7 +88,7 @@ Rows 15 to 30 are stretch goals, added once every acceptance criterion was met.
 
 ### Stretch goals
 
-Checks 8 to 18 test the stretch goals, once rows 15 to 30 have landed.
+Checks 8 to 18 test the stretch goals, once rows 15 to 31 have landed.
 
 | # | Check | How | Status |
 | --- | --- | --- | --- |
@@ -100,7 +101,7 @@ Checks 8 to 18 test the stretch goals, once rows 15 to 30 have landed.
 | 14 | Monsters can be fought | Walking into a monster hits it, and enough hits kill it. | |
 | 15 | Monsters hurt back, and the game can be lost | Standing next to a monster costs hit points, shown on the status line. At zero, the game over screen shows, then the title. | |
 | 16 | Potions heal | Pick up a potion, take some hits, then press `p`: hit points go up by 5, never past the most, and the potion leaves the inventory. With no potions, `p` says so. | |
-| 17 | Settings change the game | Changing a setting in the TOML file, such as fewer floors or a smaller level, changes the game, and the fingerprint beside the seed changes with it. A mistake in the file warns and falls back to the default for that value. | |
+| 17 | Settings change the game | Changing a setting in the TOML file, such as fewer floors or a smaller level, changes the game, and the fingerprint beside the seed changes with it. A mistake in the file warns and falls back to the default for that value. The settings code on the win or game over screen replays the same settings with `--settings-code`, with the same fingerprint. | |
 | 18 | The original checks still hold | Re-run checks 1 to 3 on the finished stretch goals, with input that starts a game from the title screen first. | |
 
 ## Acceptance criteria
@@ -131,4 +132,4 @@ The person added these after play-testing:
 - Saving and loading from a menu. Levels regenerate from the seed, so a save only needs the seed, the depth, the player's position and inventory, the explored tiles, and which items have been picked up on the current level.
 - A log that keeps past messages instead of replacing them, with a key to clear it. The person added this while trying row 15.
 
-The person chose every stretch goal except saving and loading, planned as rows 15 to 30, with checks 8 to 18.
+The person chose every stretch goal except saving and loading, planned as rows 15 to 31, with checks 8 to 18.

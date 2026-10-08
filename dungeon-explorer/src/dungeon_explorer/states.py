@@ -159,7 +159,7 @@ class _InGameState(State):
 
     def goodbye(self) -> str:
         game = self.game
-        return f"Goodbye! You reached level {game.depth} of {_seed(game)}."
+        return _goodbye(game, f"You reached level {game.depth} of {_seed(game)}.")
 
 
 class PlayingState(_InGameState):
@@ -281,6 +281,7 @@ class WinState(_InGameState):
             " carrying:",
             *_carried(game),
             "",
+            *_replay(game, then=""),
             TO_TITLE,
         ]
 
@@ -289,7 +290,7 @@ class WinState(_InGameState):
 
     def goodbye(self) -> str:
         game = self.game
-        return f"Goodbye! You escaped all {game.floors} floors of {_seed(game)}."
+        return _goodbye(game, f"You escaped all {game.floors} floors of {_seed(game)}.")
 
 
 class GameOverState(_InGameState):
@@ -305,6 +306,7 @@ class GameOverState(_InGameState):
             "You were carrying:",
             *_carried(game),
             "",
+            *_replay(game, then=""),
             TO_TITLE,
         ]
 
@@ -313,7 +315,7 @@ class GameOverState(_InGameState):
 
     def goodbye(self) -> str:
         game = self.game
-        return f"Goodbye! You died on level {game.depth} of {_seed(game)}."
+        return _goodbye(game, f"You died on level {game.depth} of {_seed(game)}.")
 
 
 class LeaveState(_InGameState):
@@ -385,6 +387,22 @@ def _seed(game: Game) -> str:
     """The game's seed and settings fingerprint, which together say which
     dungeon it was."""
     return f"seed {game.seed} (settings {game.settings.fingerprint})"
+
+
+def _goodbye(game: Game, how_it_went: str) -> str:
+    """Goodbye, how the game went, and how to replay its settings if needed."""
+    return "\n".join([f"Goodbye! {how_it_went}", *_replay(game)])
+
+
+def _replay(game: Game, then: str | None = None) -> list[str]:
+    """How to play this game's settings again, if they aren't the defaults,
+    followed by `then` if it's given. The code goes on a line of its own, so
+    it can be copied whole however the terminal wraps it."""
+    code = game.settings.code
+    if code is None:
+        return []
+    lines = ["Replay these settings with:", f"--settings-code {code}"]
+    return lines if then is None else [*lines, then]
 
 
 def _carried(game: Game) -> list[str]:

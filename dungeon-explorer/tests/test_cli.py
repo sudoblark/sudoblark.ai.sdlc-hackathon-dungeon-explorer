@@ -298,3 +298,31 @@ def test_problems_with_the_settings_show_on_the_title_screen(
     assert "Problems with the settings file:" in out
     # The path may be long enough to wrap, but it's never split.
     assert f"{missing} doesn't exist" in " ".join(out.split())
+
+
+def test_the_command_plays_with_the_settings_a_code_gives(monkeypatch, capsys):
+    code = Settings(min_floors=2, max_floors=2).code
+
+    _, out = _play(
+        monkeypatch, capsys, ["--seed", "42", "--settings-code", code], *START, "d"
+    )
+
+    assert (
+        f"Level 1 of 2   Seed 42 (settings {TWO_FLOORS})   HP 20/20" in out.splitlines()
+    )
+    assert out.strip().endswith(f"--settings-code {code}")
+
+
+def test_a_settings_file_and_a_code_cant_both_be_given(capsys):
+    with pytest.raises(SystemExit) as error:
+        main(["--settings", "mine.toml", "--settings-code", "abc"])
+
+    assert error.value.code == 2
+    assert "not allowed with argument" in capsys.readouterr().err
+
+
+def test_a_code_that_cant_be_read_is_reported_on_the_title_screen(monkeypatch, capsys):
+    _, out = _play(monkeypatch, capsys, ["--settings-code", "not-a-code"], *EXIT)
+
+    assert "Problems with the settings file:" in out
+    assert "the settings code can't be read, so the defaults are used" in out

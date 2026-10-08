@@ -1,9 +1,11 @@
 """Everything about the game a settings file can change, its defaults, and
 reading it from a TOML file."""
 
+import base64
 import hashlib
 import json
 import tomllib
+import zlib
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Annotated, Any, Self
@@ -73,6 +75,21 @@ class Settings:
         text = json.dumps(asdict(self), sort_keys=True)
         return hashlib.sha256(text.encode()).hexdigest()[:6]
 
+    @property
+    def code(self) -> str | None:
+        """A code that gives these settings back through --settings-code, or
+        None for the defaults, which need no code.
+
+        It holds only what differs from the defaults, laid out as a settings
+        file would be, as compact JSON, compressed and made safe to paste.
+        """
+        differences = _differences(self)
+        if not differences:
+            return None
+        text = json.dumps(differences, separators=(",", ":"), sort_keys=True)
+        packed = zlib.compress(text.encode(), level=9)
+        return base64.urlsafe_b64encode(packed).decode().rstrip("=")
+
 
 DEFAULT_SETTINGS = Settings()
 
@@ -83,6 +100,8 @@ _DEFAULTS = DEFAULT_SETTINGS
 # Glyphs the screen already uses for walls, floor, the player, the stairs and
 # unseen tiles, so no item or monster can have them.
 RESERVED_GLYPHS = {"#", ".", "@", ">", " "}
+# The most a settings code can expand to, far more than any real settings need.
+CODE_LIMIT = 64 * 1024
 
 
 def _range(smallest: int) -> Any:
@@ -184,6 +203,34 @@ def load_settings(path: Path, required: bool = False) -> tuple[Settings, list[st
         return DEFAULT_SETTINGS, [f"{path} doesn't exist"] if required else []
     except (OSError, tomllib.TOMLDecodeError) as error:
         return DEFAULT_SETTINGS, [f"{path} can't be read: {error}"]
+    return _check(data)
+
+
+def load_settings_code(code: str) -> tuple[Settings, list[str]]:
+    """The settings a code from Settings.code gives back, and a warning for
+    each mistake, checked just as a settings file is."""
+    try:
+        packed = base64.urlsafe_b64decode(code + "=" * (-len(code) % 4))
+        unpacker = zlib.decompressobj()
+        # Codes come from other people, so don't let one expand without limit.
+        text = unpacker.decompress(packed, CODE_LIMIT)
+        if unpacker.unconsumed_tail:
+            raise ValueError("it's too big")
+        # Only a complete code ends with the checksum that proves it's intact.
+        if not unpacker.eof:
+            raise ValueError("it's cut short")
+        data = json.loads(text)
+    except (ValueError, zlib.error):
+        data = None
+    if not isinstance(data, dict):
+        return DEFAULT_SETTINGS, [
+            "the settings code can't be read, so the defaults are used"
+        ]
+    return _check(data)
+
+
+def _check(data: dict[str, Any]) -> tuple[Settings, list[str]]:
+    """Settings from the tables of a settings file, and a warning for each mistake."""
     warnings: list[str] = []
     # Each pass drops the first value that's wrong, so it falls back to its
     # default, until what's left is valid.
@@ -275,3 +322,66 @@ def _to_settings(parsed: _SettingsFile, warnings: list[str]) -> Settings:
         view_height=screen.view_height,
         log_lines=screen.log_lines,
     )
+
+
+def _file_shape(settings: Settings) -> dict[str, Any]:
+    """Every one of `settings`, laid out as a settings file would be."""
+    return {
+        "dungeon": {
+            "min_floors": settings.min_floors,
+            "max_floors": settings.max_floors,
+        },
+        "level": {
+            "width": settings.level_width,
+            "height": settings.level_height,
+            "max_rooms": settings.max_rooms,
+            "room_widths": list(settings.room_widths),
+            "room_heights": list(settings.room_heights),
+            "items_per_level": list(settings.items_per_level),
+            "monsters_per_floor": list(settings.monsters_per_floor),
+        },
+        "screen": {
+            "view_width": settings.view_width,
+            "view_height": settings.view_height,
+            "log_lines": settings.log_lines,
+        },
+        "items": [
+            {
+                "name": item.name,
+                "glyph": item.glyph,
+                "first_floor": first_floor,
+                "damage": item.damage,
+                "healing": item.healing,
+            }
+            for item, first_floor in settings.items
+        ],
+        "monsters": [
+            {
+                "name": monster.name,
+                "glyph": monster.glyph,
+                "hit_points": monster.hit_points,
+                "damage": monster.damage,
+                "first_floor": first_floor,
+            }
+            for monster, first_floor in settings.monsters
+        ],
+    }
+
+
+def _differences(settings: Settings) -> dict[str, Any]:
+    """The parts of a settings file needed to turn the defaults into `settings`:
+    each changed value, and the whole list of items or monsters if it changed."""
+    wanted, defaults = _file_shape(settings), _file_shape(DEFAULT_SETTINGS)
+    differences: dict[str, Any] = {}
+    for table in ("dungeon", "level", "screen"):
+        changed = {
+            key: value
+            for key, value in wanted[table].items()
+            if value != defaults[table][key]
+        }
+        if changed:
+            differences[table] = changed
+    for kinds in ("items", "monsters"):
+        if wanted[kinds] != defaults[kinds]:
+            differences[kinds] = wanted[kinds]
+    return differences
