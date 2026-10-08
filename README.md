@@ -1,6 +1,6 @@
 # sudoblark.ai.sdlc-hackathon-dungeon-explorer
 
-This repository is a fully worked example project from the LLms in the SDLC hackathon run by Sudoblark. Specifically, it is a silly little ASCII Dungeon Explorer made in roughly 3 hours to demonstrate the principles of the hackathon.
+This repository is a fully worked example project from the LLMs in the SDLC hackathon run by Sudoblark. Specifically, it is a silly little ASCII Dungeon Explorer made in roughly 3 hours to demonstrate the principles of the hackathon.
 
 For further context please see:
 
