@@ -4,9 +4,10 @@ import pytest
 from helpers import game_on, level_from
 
 from dungeon_explorer.game import Game
-from dungeon_explorer.level import Item
-from dungeon_explorer.render import draw_mini_map, draw_view
-from dungeon_explorer.states import HelpState, InventoryState, PlayingState
+from dungeon_explorer.generate import ITEMS
+from dungeon_explorer.level import Item, Tile
+from dungeon_explorer.render import PLAYER, STAIRS_DOWN, draw_mini_map, draw_view
+from dungeon_explorer.states import LEGEND, HelpState, InventoryState, PlayingState
 
 POTION = Item("potion", "!")
 GOLD = Item("gold", "$")
@@ -20,23 +21,35 @@ ROOM = level_from(
 )
 
 
-def test_playing_draws_the_status_framed_view_and_mini_map_then_the_message():
+def test_playing_draws_a_header_the_panels_with_a_legend_and_the_message():
     game = Game.new(seed=42)
     game.message = "A wall is in the way."
 
     lines = PlayingState(game).draw()
 
     view, mini_map = draw_view(game), draw_mini_map(game)
-    assert lines[0] == "Level 1   Seed 42   ? for help"
-    assert lines[1] == "+" + "-" * 31 + "+ +" + "-" * 32 + "+"
+    assert lines[0] == "DUNGEON EXPLORER" + " " * 23 + "i inventory   ? help   q quit"
+    assert lines[1] == "Level 1   Seed 42"
+    assert lines[2] == "+- View " + "-" * 24 + "+ +- Map " + "-" * 26 + "+"
+    key = ["Key", "@ you", "# wall", ". floor", "> stairs"]
+    key += ["! potion", "$ gold", "? scroll", ") dagger"]
     # The view is 15 lines and the mini-map 16, so the view gets a blank line.
     for row in range(16):
         left = view[row] if row < len(view) else " " * 31
-        assert lines[2 + row] == f"|{left}| |{mini_map[row]}|"
-    assert lines[18] == lines[1]
-    assert lines[19] == "A wall is in the way."
-    assert len(lines) == 20
+        panels = f"|{left}| |{mini_map[row]}|"
+        beside = f"  {key[row]}" if row < len(key) else ""
+        assert lines[3 + row] == panels + beside
+    assert lines[19] == "+" + "-" * 31 + "+ +" + "-" * 32 + "+"
+    assert lines[20] == "A wall is in the way."
+    assert len(lines) == 21
     assert max(len(line) for line in lines) <= 80
+
+
+def test_the_legend_explains_every_symbol_the_playing_screen_can_show():
+    glyphs = {glyph for glyph, _ in LEGEND}
+
+    assert {PLAYER, STAIRS_DOWN, Tile.WALL, Tile.FLOOR} <= glyphs
+    assert {item.glyph for item in ITEMS} <= glyphs
 
 
 @pytest.mark.parametrize(

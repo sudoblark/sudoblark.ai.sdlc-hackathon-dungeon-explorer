@@ -85,7 +85,7 @@ def test_the_command_plays_the_seed_it_is_given(monkeypatch, capsys):
     code, out = _play(monkeypatch, capsys, ["--seed", "42"], "q")
 
     assert code == 0
-    assert out.startswith("Level 1   Seed 42   ? for help\n")
+    assert out.splitlines()[1] == "Level 1   Seed 42"
     assert CLEAR_SCREEN not in out  # output isn't a terminal under test
 
 
@@ -104,7 +104,7 @@ def test_without_a_seed_the_command_picks_one_and_shows_it(monkeypatch, capsys):
 
     _, out = _play(monkeypatch, capsys, [], "q")
 
-    assert "Seed 123456" in out.splitlines()[0]
+    assert out.splitlines()[1] == "Level 1   Seed 123456"
     assert re.search(r"Goodbye! You reached level 1 of seed 123456\.$", out.strip())
 
 

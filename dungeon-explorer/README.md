@@ -28,7 +28,7 @@ Press a key; there's no need to press Enter:
 | `?` | Show the help |
 | `q` | Quit |
 
-The left panel shows the area around you, and the right panel is a mini-map of the whole level at half size. Both show only what you've explored: entering a room reveals all of it, and corridors are mapped as you walk them. Walk onto an item to pick it up.
+The left panel shows the area around you, and the right panel is a mini-map of the whole level at half size, with a key to the symbols beside it. Both show only what you've explored: entering a room reveals all of it, and corridors are mapped as you walk them. Walk onto an item to pick it up.
 
 | Symbol | What it is |
 | --- | --- |
