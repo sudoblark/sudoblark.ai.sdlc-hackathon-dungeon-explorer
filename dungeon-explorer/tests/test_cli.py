@@ -10,6 +10,11 @@ from dungeon_explorer.game import Game
 from dungeon_explorer.generate import floor_count
 from dungeon_explorer.states import InventoryState, PlayingState
 
+# Piped input for the menus: an empty line is Enter.
+START = ("", "")  # New game, keeping the seed already filled in
+LEAVE = ("q", "y")  # leave the game for the title screen
+EXIT = ("s", "")  # move down to Exit and pick it
+
 ROOM = level_from(
     "#####",
     "#...#",
@@ -41,15 +46,16 @@ def test_the_loop_draws_each_screen_and_hands_each_line_to_it():
     start = PlayingState(game_on(ROOM, position=(1, 1)))
     assert drawn[0] == "\n".join(start.draw())
     assert drawn[2] == "\n".join(InventoryState(game).draw())
-    assert len(drawn) == 5  # four screens, then goodbye
+    assert drawn[4].startswith("Leave this game?")
+    assert len(drawn) == 6  # five screens, then goodbye
     assert game.player.position == (2, 1)
 
 
-def test_quitting_says_goodbye_with_the_level_and_seed():
+def test_leaving_a_game_says_goodbye_with_the_level_and_seed():
     game = Game.new(seed=42)
     drawn: list[str] = []
 
-    game_loop(PlayingState(game), _script("q"), drawn.append)
+    game_loop(PlayingState(game), _script(*LEAVE), drawn.append)
 
     assert drawn[-1] == "Goodbye! You reached level 1 of seed 42."
 
@@ -82,16 +88,36 @@ def _play(monkeypatch, capsys, argv: list[str], *lines: str) -> tuple[int, str]:
     return code, capsys.readouterr().out
 
 
-def test_the_command_plays_the_seed_it_is_given(monkeypatch, capsys):
-    code, out = _play(monkeypatch, capsys, ["--seed", "42"], "q")
+def test_the_command_opens_on_the_title_screen(monkeypatch, capsys):
+    code, out = _play(monkeypatch, capsys, ["--seed", "42"], *EXIT)
 
     assert code == 0
-    assert out.splitlines()[1] == f"Level 1 of {floor_count(42)}   Seed 42"
+    assert out.splitlines()[1] == "|       DUNGEON EXPLORER       |"
+    assert out.strip().endswith("Goodbye!")
     assert CLEAR_SCREEN not in out  # output isn't a terminal under test
 
 
+def test_a_new_game_plays_the_seed_given_on_the_command_line(monkeypatch, capsys):
+    script = (*START, *LEAVE, *EXIT)
+
+    code, out = _play(monkeypatch, capsys, ["--seed", "42"], *script)
+
+    assert code == 0
+    assert f"Level 1 of {floor_count(42)}   Seed 42" in out.splitlines()
+    assert out.strip().endswith("Goodbye!")
+
+
+def test_a_typed_seed_replaces_the_one_filled_in(monkeypatch, capsys):
+    # Enter on New game, delete the 42 filled in, type 7, then Enter.
+    script = ("", "\x7f", "\x7f", "7", "", *LEAVE, *EXIT)
+
+    _, out = _play(monkeypatch, capsys, ["--seed", "42"], *script)
+
+    assert f"Level 1 of {floor_count(7)}   Seed 7" in out.splitlines()
+
+
 def test_the_same_seed_draws_the_same_game(monkeypatch, capsys):
-    moves = ("d", "d", "w", "w", "w", "q")
+    moves = (*START, "d", "d", "w", "w", "w", *LEAVE, *EXIT)
     _, first = _play(monkeypatch, capsys, ["--seed", "42"], *moves)
     _, second = _play(monkeypatch, capsys, ["--seed", "42"], *moves)
     _, other = _play(monkeypatch, capsys, ["--seed", "43"], *moves)
@@ -103,9 +129,9 @@ def test_the_same_seed_draws_the_same_game(monkeypatch, capsys):
 def test_without_a_seed_the_command_picks_one_and_shows_it(monkeypatch, capsys):
     monkeypatch.setattr(cli.random, "randrange", lambda _: 123456)
 
-    _, out = _play(monkeypatch, capsys, [], "q")
+    _, out = _play(monkeypatch, capsys, [], *START, "d")
 
-    assert out.splitlines()[1] == f"Level 1 of {floor_count(123456)}   Seed 123456"
+    assert f"Level 1 of {floor_count(123456)}   Seed 123456" in out.splitlines()
     assert re.search(r"Goodbye! You reached level 1 of seed 123456\.$", out.strip())
 
 
@@ -133,7 +159,8 @@ def _refuse(prompt: str) -> str:
 
 def test_in_a_terminal_the_command_reads_single_keys(monkeypatch, capsys):
     monkeypatch.setattr(cli.sys, "stdin", _Stdin(terminal=True))
-    monkeypatch.setattr(cli, "read_key", _script("d", "q"))
+    # In a terminal, Enter arrives as a newline.
+    monkeypatch.setattr(cli, "read_key", _script("\n", "\n", "d"))
     monkeypatch.setattr("builtins.input", _refuse)
 
     assert main(["--seed", "42"]) == 0
@@ -143,7 +170,7 @@ def test_in_a_terminal_the_command_reads_single_keys(monkeypatch, capsys):
 def test_piped_input_is_read_a_line_at_a_time(monkeypatch, capsys):
     monkeypatch.setattr(cli.sys, "stdin", _Stdin(terminal=False))
     monkeypatch.setattr(cli, "read_key", _refuse)
-    monkeypatch.setattr("builtins.input", _script("d", "q"))
+    monkeypatch.setattr("builtins.input", _script(*START, "d"))
 
     assert main(["--seed", "42"]) == 0
     assert "Goodbye! You reached level 1 of seed 42." in capsys.readouterr().out
@@ -161,6 +188,14 @@ def test_piped_input_is_read_a_line_at_a_time(monkeypatch, capsys):
 )
 def test_keys_come_back_as_pressed_and_escapes_are_ignored(raw, key):
     assert _key_from(raw) == key
+
+
+def test_reading_a_key_skips_arrows_and_escape(monkeypatch):
+    sent = iter(["\x1b[A", "\x1b", "w"])
+    monkeypatch.setattr(cli, "_read_unix_key", lambda: next(sent))
+    monkeypatch.setattr(cli, "_read_windows_key", lambda: next(sent))
+
+    assert cli.read_key() == "w"
 
 
 def test_ctrl_c_interrupts_as_it_does_at_a_prompt():

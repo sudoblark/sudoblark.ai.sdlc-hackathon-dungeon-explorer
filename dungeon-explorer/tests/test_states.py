@@ -11,8 +11,11 @@ from dungeon_explorer.states import (
     LEGEND,
     HelpState,
     InventoryState,
+    LeaveState,
     LogState,
     PlayingState,
+    SeedState,
+    TitleState,
     WinState,
 )
 
@@ -37,8 +40,8 @@ def test_playing_draws_a_header_the_panels_with_a_legend_and_the_log():
     lines = PlayingState(game).draw()
 
     view, mini_map = draw_view(game), draw_mini_map(game)
-    menu = "i inventory  l log  c clear  ? help  q quit"
-    assert lines[0] == "DUNGEON EXPLORER" + " " * 9 + menu
+    menu = "i inventory  l log  c clear  ? help  q leave"
+    assert lines[0] == "DUNGEON EXPLORER" + " " * 8 + menu
     assert lines[1] == f"Level 1 of {floor_count(42)}   Seed 42"
     assert lines[2] == "+- View " + "-" * 24 + "+ +- Map " + "-" * 26 + "+"
     key = ["Key", "@ you", "# wall", ". floor", "> stairs"]
@@ -102,10 +105,13 @@ def test_playing_opens_the_inventory_and_help_screens(text, state):
     assert isinstance(PlayingState(game).handle(text), state)
 
 
-def test_playing_quits_on_q():
+def test_q_asks_before_leaving_the_game():
     game = game_on(ROOM, position=(2, 2))
 
-    assert PlayingState(game).handle("q") is None
+    leave = PlayingState(game).handle("q")
+
+    assert isinstance(leave, LeaveState)
+    assert leave.game is game
 
 
 def test_playing_runs_commands_and_stays_on_the_playing_screen():
@@ -336,3 +342,184 @@ def test_the_win_screen_says_goodbye_with_the_floors_escaped():
     game = _on_the_last_stairs(seed=1)
 
     assert WinState(game).goodbye() == "Goodbye! You escaped all 3 floors of seed 1."
+
+
+def _title(seed: int | None = None) -> TitleState:
+    """A title screen whose random seeds are always 99."""
+    return TitleState(seed, random_seed=lambda: 99)
+
+
+def test_the_title_screen_highlights_new_game_first():
+    assert _title().draw() == [
+        "+------------------------------+",
+        "|       DUNGEON EXPLORER       |",
+        "+------------------------------+",
+        "",
+        "  > New game <",
+        "    Exit",
+        "",
+        "w/s to choose, Enter to pick",
+    ]
+
+
+def test_w_and_s_move_the_highlight_and_stop_at_either_end():
+    title = _title()
+
+    assert title.handle("s") is title
+    assert title.draw()[4:6] == ["    New game", "  > Exit <"]
+    title.handle("s")
+    assert title.choice == 1
+    title.handle("w")
+    title.handle("w")
+    assert title.choice == 0
+
+
+@pytest.mark.parametrize("enter", ["", "\n", "\r"])
+def test_enter_on_new_game_opens_the_seed_screen(enter):
+    title = _title(seed=42)
+
+    seed = title.handle(enter)
+
+    assert isinstance(seed, SeedState)
+    assert seed.digits == "42"
+    assert seed.title is title
+
+
+def test_the_seed_screen_starts_blank_without_a_seed_from_the_command_line():
+    assert _title().handle("").digits == ""
+
+
+def test_enter_on_exit_ends_the_game():
+    title = _title()
+    title.handle("s")
+
+    assert title.handle("") is None
+    assert title.goodbye() == "Goodbye!"
+
+
+def test_other_keys_on_the_title_screen_do_nothing():
+    title = _title()
+
+    assert title.handle("x") is title
+    assert title.choice == 0
+
+
+def test_the_seed_screen_shows_what_has_been_typed():
+    seed = SeedState(_title(), digits="42")
+
+    assert seed.draw() == [
+        "New game",
+        "",
+        "Type a seed and press Enter, or leave it blank for a random one.",
+        "",
+        "  Seed: 42_",
+        "",
+        "q to go back",
+    ]
+
+
+def test_typing_digits_adds_them_and_backspace_takes_them_away():
+    seed = SeedState(_title())
+
+    for key in ("1", "2", "3", "\x7f", "4", "\b"):
+        assert seed.handle(key) is seed
+
+    assert seed.digits == "12"
+
+
+def test_a_typed_line_of_digits_adds_them_all():
+    seed = SeedState(_title(), digits="1")
+
+    seed.handle("234")
+
+    assert seed.digits == "1234"
+
+
+def test_seeds_stop_at_nine_digits():
+    seed = SeedState(_title())
+
+    seed.handle("1234567890")
+
+    assert seed.digits == "123456789"
+
+
+def test_enter_starts_a_game_with_the_typed_seed():
+    title = _title()
+
+    playing = SeedState(title, digits="7").handle("")
+
+    assert isinstance(playing, PlayingState)
+    assert playing.game.seed == 7
+    assert playing.game.depth == 1
+    assert playing.title is title
+
+
+def test_enter_on_a_blank_seed_starts_a_game_with_a_random_one():
+    playing = SeedState(_title(), digits="").handle("")
+
+    assert playing.game.seed == 99
+
+
+def test_q_on_the_seed_screen_goes_back_to_the_title():
+    title = _title()
+
+    assert SeedState(title, digits="7").handle("q") is title
+
+
+def test_other_keys_on_the_seed_screen_do_nothing():
+    seed = SeedState(_title(), digits="7")
+
+    assert seed.handle("x") is seed
+    assert seed.digits == "7"
+
+
+def test_leaving_asks_for_confirmation():
+    game = Game.new(seed=42)
+
+    assert LeaveState(game).draw() == [
+        "Leave this game?",
+        "",
+        "Your progress on seed 42 will be lost.",
+        "",
+        "  y   Leave",
+        "  any other key to keep playing",
+    ]
+
+
+def test_y_leaves_the_game_for_the_title_screen():
+    title = _title()
+    game = game_on(ROOM, position=(2, 2))
+
+    assert LeaveState(game, title).handle("y") is title
+
+
+def test_y_without_a_title_screen_ends_everything():
+    assert LeaveState(game_on(ROOM, position=(2, 2))).handle("y") is None
+
+
+@pytest.mark.parametrize("text", ["", "n", "q", "w"])
+def test_any_other_key_keeps_playing(text):
+    title = _title()
+    game = game_on(ROOM, position=(2, 2))
+
+    back = LeaveState(game, title).handle(text)
+
+    assert isinstance(back, PlayingState)
+    assert back.game is game
+    assert back.title is title
+
+
+def test_the_screens_of_a_game_keep_hold_of_the_title_screen():
+    title = _title()
+    playing = PlayingState(game_on(ROOM, position=(2, 2)), title)
+
+    for key in ("i", "?", "l", "q"):
+        screen = playing.handle(key)
+        assert screen.title is title
+        assert screen.handle("x").title is title
+
+
+def test_the_win_screen_goes_back_to_the_title_screen():
+    title = _title()
+
+    assert WinState(_on_the_last_stairs(seed=1), title).handle("x") is title

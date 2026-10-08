@@ -14,8 +14,7 @@ import random
 import sys
 from collections.abc import Callable
 
-from dungeon_explorer.game import Game
-from dungeon_explorer.states import PlayingState, State
+from dungeon_explorer.states import State, TitleState
 
 PROMPT = "> "
 # ANSI codes to clear the terminal and move to its top left, so each turn
@@ -61,14 +60,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--seed",
         type=int,
-        help="the dungeon to explore; the same seed always gives the same "
-        "dungeon (default: a random one, shown on screen)",
+        help="fill in the seed for a new game; the same seed always gives the "
+        "same dungeon (default: a random one, shown on screen)",
     )
     args = parser.parse_args(argv)
-    seed = args.seed if args.seed is not None else random.randrange(RANDOM_SEEDS)
+    title = TitleState(args.seed, lambda: random.randrange(RANDOM_SEEDS))
     try:
         read = read_key if sys.stdin.isatty() else input
-        game_loop(PlayingState(Game.new(seed)), read, print, clear=sys.stdout.isatty())
+        game_loop(title, read, print, clear=sys.stdout.isatty())
     except KeyboardInterrupt:
         print()
         return 130
@@ -78,13 +77,18 @@ def main(argv: list[str] | None = None) -> int:
 def read_key(prompt: str = "") -> str:
     """Wait for one keypress in the terminal and return it, without Enter.
 
-    `prompt` is ignored, because the screen is redrawn after every key.
-    Ctrl-C raises KeyboardInterrupt and Ctrl-D raises EOFError, as they do
-    for input().
+    `prompt` is ignored, because the screen is redrawn after every key. Keys
+    that send an escape, such as arrows, are skipped, so they can't be taken
+    for Enter. Ctrl-C raises KeyboardInterrupt and Ctrl-D raises EOFError, as
+    they do for input().
     """
-    if sys.platform == "win32":
-        return _key_from(_read_windows_key())
-    return _key_from(_read_unix_key())
+    while True:
+        if sys.platform == "win32":
+            key = _key_from(_read_windows_key())
+        else:
+            key = _key_from(_read_unix_key())
+        if key:
+            return key
 
 
 def _read_unix_key() -> str:

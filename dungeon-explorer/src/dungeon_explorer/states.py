@@ -4,9 +4,13 @@ This is the State pattern from Game Programming Patterns: the game loop only
 ever talks to the current state, which says what to draw and which state
 comes next. Returning None ends the game. Each state holds whatever it shows,
 so a state can start a new game or leave a finished one behind.
+
+The game opens on the title screen. The screens of a game in play hold the
+title screen too, so they can go back to it when the game ends.
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from dungeon_explorer.commands import parse_command
@@ -17,7 +21,14 @@ from dungeon_explorer.render import PLAYER, STAIRS_DOWN, draw_mini_map, draw_vie
 
 BACK = "Press any key to go back."
 TITLE = "DUNGEON EXPLORER"
-MENU = "i inventory  l log  c clear  ? help  q quit"
+MENU = "i inventory  l log  c clear  ? help  q leave"
+# The keys that mean Enter: a terminal sends "\n" or "\r", and piped input
+# reads an empty line.
+ENTER = ("", "\n", "\r")
+# Backspace sends DEL on macOS and Linux terminals, and BS on Windows.
+BACKSPACE = ("\x7f", "\b")
+# Long enough for any seed you'd want to type, short enough to show.
+SEED_DIGITS = 9
 # How many of the newest messages show under the map.
 LOG_LINES = 3
 # How many messages the log screen shows at once.
@@ -49,10 +60,93 @@ class State(ABC):
 
 
 @dataclass
+class TitleState(State):
+    """The title screen: New Game and Exit, chosen with w, s and Enter.
+
+    `seed` is the one given on the command line, if any, which fills in the
+    seed screen. `random_seed` picks a seed when the player leaves it blank.
+    """
+
+    seed: int | None
+    random_seed: Callable[[], int]
+    choice: int = 0
+
+    OPTIONS = ("New game", "Exit")
+
+    def draw(self) -> list[str]:
+        options = [
+            f"  > {option} <" if row == self.choice else f"    {option}"
+            for row, option in enumerate(self.OPTIONS)
+        ]
+        return [
+            "+" + "-" * 30 + "+",
+            "|" + TITLE.center(30) + "|",
+            "+" + "-" * 30 + "+",
+            "",
+            *options,
+            "",
+            "w/s to choose, Enter to pick",
+        ]
+
+    def handle(self, text: str) -> State | None:
+        key = text.strip().lower()
+        if key == "w":
+            self.choice = max(self.choice - 1, 0)
+        elif key == "s":
+            self.choice = min(self.choice + 1, len(self.OPTIONS) - 1)
+        elif text in ENTER:
+            if self.OPTIONS[self.choice] == "Exit":
+                return None
+            digits = "" if self.seed is None else str(self.seed)
+            return SeedState(title=self, digits=digits)
+        return self
+
+    def goodbye(self) -> str:
+        return "Goodbye!"
+
+
+@dataclass
+class SeedState(State):
+    """Typing the seed for a new game, or leaving it blank for a random one."""
+
+    title: TitleState
+    digits: str = ""
+
+    def draw(self) -> list[str]:
+        return [
+            "New game",
+            "",
+            "Type a seed and press Enter, or leave it blank for a random one.",
+            "",
+            f"  Seed: {self.digits}_",
+            "",
+            "q to go back",
+        ]
+
+    def handle(self, text: str) -> State | None:
+        if text in ENTER:
+            seed = int(self.digits) if self.digits else self.title.random_seed()
+            return PlayingState(Game.new(seed), self.title)
+        if text in BACKSPACE:
+            self.digits = self.digits[:-1]
+        elif text.isdigit():
+            self.digits = (self.digits + text)[:SEED_DIGITS]
+        elif text.strip().lower() == "q":
+            return self.title
+        return self
+
+    def goodbye(self) -> str:
+        return "Goodbye!"
+
+
+@dataclass
 class _InGameState(State):
-    """A screen of a game in play, which it holds."""
+    """A screen of a game in play, which it holds, along with the title screen
+    to go back to when the game ends. Without a title screen, as in tests, the
+    end of the game ends everything."""
 
     game: Game
+    title: TitleState | None = None
 
     def goodbye(self) -> str:
         game = self.game
@@ -91,13 +185,13 @@ class PlayingState(_InGameState):
     def handle(self, text: str) -> State | None:
         key = text.strip().lower()
         if key == "q":
-            return None
+            return LeaveState(self.game, self.title)
         if key == "i":
-            return InventoryState(self.game)
+            return InventoryState(self.game, self.title)
         if key == "?":
-            return HelpState(self.game)
+            return HelpState(self.game, self.title)
         if key == "l":
-            return LogState(self.game)
+            return LogState(self.game, self.title)
         if key == "c":
             # Clearing the log isn't a turn, so it's a screen key, not a command.
             self.game.clear_log()
@@ -108,7 +202,7 @@ class PlayingState(_InGameState):
         elif key:
             self.game.say(f"Unknown command {text.strip()!r}. Press ? for help.")
         if self.game.finished:
-            return WinState(self.game)
+            return WinState(self.game, self.title)
         return self
 
 
@@ -127,7 +221,7 @@ class InventoryState(_InGameState):
         ]
 
     def handle(self, text: str) -> State | None:
-        return PlayingState(self.game)
+        return PlayingState(self.game, self.title)
 
 
 class HelpState(_InGameState):
@@ -143,14 +237,14 @@ class HelpState(_InGameState):
             "  l         read every message so far",
             "  c         clear the messages",
             "  ?         show this help",
-            "  q         quit",
+            "  q         leave this game",
             "",
             "Each key acts as soon as you press it. Walk onto an item to pick it up.",
             BACK,
         ]
 
     def handle(self, text: str) -> State | None:
-        return PlayingState(self.game)
+        return PlayingState(self.game, self.title)
 
 
 class WinState(_InGameState):
@@ -171,11 +265,30 @@ class WinState(_InGameState):
         ]
 
     def handle(self, text: str) -> State | None:
-        return None
+        return self.title
 
     def goodbye(self) -> str:
         game = self.game
         return f"Goodbye! You escaped all {game.floors} floors of seed {game.seed}."
+
+
+class LeaveState(_InGameState):
+    """Checking the player meant to press q, since it sits right next to w."""
+
+    def draw(self) -> list[str]:
+        return [
+            "Leave this game?",
+            "",
+            f"Your progress on seed {self.game.seed} will be lost.",
+            "",
+            "  y   Leave",
+            "  any other key to keep playing",
+        ]
+
+    def handle(self, text: str) -> State | None:
+        if text.strip().lower() == "y":
+            return self.title
+        return PlayingState(self.game, self.title)
 
 
 @dataclass
@@ -209,7 +322,7 @@ class LogState(_InGameState):
         if key == "s":
             self.scroll = max(self.scroll - 1, 0)
             return self
-        return PlayingState(self.game)
+        return PlayingState(self.game, self.title)
 
 
 def _frame(lines: list[str], height: int, label: str) -> list[str]:
