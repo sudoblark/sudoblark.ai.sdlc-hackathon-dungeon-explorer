@@ -69,7 +69,7 @@ def test_the_loop_draws_each_screen_and_hands_each_line_to_it():
     start = PlayingState(game_on(ROOM, position=(1, 1)))
     assert drawn[0] == "\n".join(start.draw())
     assert drawn[2] == "\n".join(InventoryState(game).draw())
-    assert drawn[4].startswith("Leave this game?")
+    assert "-- Leave this game? " in drawn[4]
     assert len(drawn) == 6  # five screens, then goodbye
     assert game.player.position == (2, 1)
 
@@ -258,7 +258,7 @@ def test_finishing_the_dungeon_ends_the_loop_on_the_win_screen():
 
     game_loop(PlayingState(game), _script(">", "x", "never read"), drawn.append)
 
-    assert drawn[1].startswith("You escaped the dungeon!")
+    assert "-- You escaped the dungeon! " in drawn[1]
     assert drawn[-1] == f"Goodbye! You escaped all 3 floors of seed 1 (settings {FP})."
     assert len(drawn) == 3  # playing, win, goodbye
 
@@ -272,7 +272,7 @@ def test_dying_ends_the_loop_on_the_game_over_screen():
 
     game_loop(PlayingState(game), _script("d", "x", "never read"), drawn.append)
 
-    assert drawn[1].startswith("You died.")
+    assert "-- You died " in drawn[1]
     assert drawn[-1] == f"Goodbye! You died on level 1 of seed 1 (settings {FP})."
     assert len(drawn) == 3  # playing, game over, goodbye
 

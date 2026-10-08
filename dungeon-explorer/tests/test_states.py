@@ -132,38 +132,49 @@ def test_playing_ignores_an_empty_line():
     assert game == before
 
 
+def _parts(lines: list[str]) -> tuple[str, list[str], str, list[str]]:
+    """A framed screen's label, the lines in its panel, the text of its keys
+    bar, and any lines below its edge, checking the edge lines up all round."""
+    bottom = max(i for i, line in enumerate(lines) if line and set(line) <= {"+", "-"})
+    framed, after = lines[: bottom + 1], lines[bottom + 1 :]
+    assert len({len(line) for line in framed}) == 1
+    assert framed[1].strip("| ") == "D U N G E O N   E X P L O R E R"
+    label = framed[3].removeprefix("+-- ").rstrip("-+").rstrip()
+    body = [line[2:-2].rstrip() for line in framed[5:-4]]
+    # In-game screens are padded to the playing screen's height.
+    while body and not body[-1]:
+        body.pop()
+    keys = framed[-2][2:-2].strip()
+    return label, body, keys, after
+
+
 def test_the_inventory_lists_what_the_player_carries_in_order():
     game = game_on(ROOM, position=(2, 2))
     game.player.inventory = [POTION, GOLD]
 
-    assert InventoryState(game).draw() == [
+    assert _parts(InventoryState(game).draw()) == (
         "Items",
-        "",
-        "  ! potion",
-        "  $ gold",
-        "",
+        ["  ! potion", "  $ gold"],
         "Press any key to go back.",
-    ]
+        [],
+    )
 
 
 def test_the_inventory_says_when_it_is_empty():
     game = game_on(ROOM, position=(2, 2))
 
-    assert InventoryState(game).draw() == [
-        "Items",
-        "",
-        "  You aren't carrying anything yet.",
-        "",
-        "Press any key to go back.",
-    ]
+    _, body, _, _ = _parts(InventoryState(game).draw())
+
+    assert body == ["  You aren't carrying anything yet."]
 
 
 def test_the_help_lists_every_key():
-    lines = HelpState(game_on(ROOM, position=(2, 2))).draw()
+    label, body, keys, _ = _parts(HelpState(game_on(ROOM, position=(2, 2))).draw())
 
-    assert lines[0] == "How to play"
+    assert label == "How to play"
+    assert keys == "Press any key to go back."
     for key in ("w a s d", ">", "i", "p", "l", "c", "?", "q"):
-        assert any(line.startswith(f"  {key} ") for line in lines), key
+        assert any(line.startswith(f"  {key} ") for line in body), key
 
 
 @pytest.mark.parametrize("screen", [InventoryState, HelpState])
@@ -206,22 +217,20 @@ def _logged(count: int) -> LogState:
 
 
 def test_the_log_screen_shows_every_message_when_they_fit():
-    assert _logged(2).draw() == [
+    assert _parts(_logged(2).draw()) == (
         "Message log   1-2 of 2",
-        "",
-        "  Message 1.",
-        "  Message 2.",
-        "",
+        ["  Message 1.", "  Message 2."],
         "w older   s newer   any other key to go back",
-    ]
+        [],
+    )
 
 
 def test_the_log_screen_opens_on_the_newest_page():
-    lines = _logged(25).draw()
+    label, body, _, _ = _parts(_logged(25).draw())
 
-    assert lines[0] == "Message log   6-25 of 25"
-    assert lines[2] == "  Message 6."
-    assert lines[21] == "  Message 25."
+    assert label == "Message log   6-25 of 25"
+    assert body[0] == "  Message 6."
+    assert body[-1] == "  Message 25."
 
 
 def test_the_log_screen_scrolls_older_with_w_and_newer_with_s():
@@ -229,9 +238,9 @@ def test_the_log_screen_scrolls_older_with_w_and_newer_with_s():
 
     assert log.handle("w") is log
     assert log.handle("w") is log
-    assert log.draw()[0] == "Message log   4-23 of 25"
+    assert _parts(log.draw())[0] == "Message log   4-23 of 25"
     assert log.handle("s") is log
-    assert log.draw()[0] == "Message log   5-24 of 25"
+    assert _parts(log.draw())[0] == "Message log   5-24 of 25"
 
 
 def test_the_log_screen_stops_scrolling_at_either_end():
@@ -239,10 +248,10 @@ def test_the_log_screen_stops_scrolling_at_either_end():
 
     for _ in range(10):
         log.handle("w")
-    assert log.draw()[0] == "Message log   1-20 of 25"
+    assert _parts(log.draw())[0] == "Message log   1-20 of 25"
     for _ in range(10):
         log.handle("s")
-    assert log.draw()[0] == "Message log   6-25 of 25"
+    assert _parts(log.draw())[0] == "Message log   6-25 of 25"
 
 
 def test_a_short_log_doesnt_scroll():
@@ -250,17 +259,16 @@ def test_a_short_log_doesnt_scroll():
 
     log.handle("w")
 
-    assert log.draw()[0] == "Message log   1-2 of 2"
+    assert _parts(log.draw())[0] == "Message log   1-2 of 2"
 
 
 def test_the_log_screen_says_when_there_are_no_messages():
-    assert _logged(0).draw() == [
+    assert _parts(_logged(0).draw()) == (
         "Message log",
-        "",
-        "  No messages yet.",
-        "",
+        ["  No messages yet."],
         "Press any key to go back.",
-    ]
+        [],
+    )
 
 
 @pytest.mark.parametrize("text", ["", "q", "d", "l"])
@@ -308,21 +316,22 @@ def test_the_win_screen_says_how_deep_and_what_was_carried_out():
     game = _on_the_last_stairs(seed=1)
     game.player.inventory = [POTION, GOLD]
 
-    assert WinState(game).draw() == [
+    assert _parts(WinState(game).draw()) == (
         "You escaped the dungeon!",
-        "",
-        "You made it through all 3 floors of seed 1, carrying:",
-        "  ! potion",
-        "  $ gold",
-        "",
+        [
+            "You made it through all 3 floors of seed 1, carrying:",
+            "  ! potion",
+            "  $ gold",
+        ],
         "Press any key to go back to the title.",
-    ]
+        [],
+    )
 
 
 def test_the_win_screen_says_when_nothing_was_carried_out():
     game = _on_the_last_stairs(seed=1)
 
-    assert WinState(game).draw()[3] == "  nothing at all."
+    assert _parts(WinState(game).draw())[1][1] == "  nothing at all."
 
 
 @pytest.mark.parametrize("text", ["", "q", "w"])
@@ -402,15 +411,16 @@ def test_other_keys_on_the_title_screen_do_nothing():
 def test_the_seed_screen_shows_what_has_been_typed():
     seed = SeedState(_title(), digits="42")
 
-    assert seed.draw() == [
+    assert _parts(seed.draw()) == (
         "New game",
-        "",
-        "Type a seed and press Enter, or leave it blank for a random one.",
-        "",
-        "  Seed: 42_",
-        "",
-        "q to go back",
-    ]
+        [
+            "Type a seed and press Enter, or leave it blank for a random one.",
+            "",
+            "  Seed: 42_",
+        ],
+        "Enter to start   q to go back",
+        [],
+    )
 
 
 def test_typing_digits_adds_them_and_backspace_takes_them_away():
@@ -471,14 +481,12 @@ def test_other_keys_on_the_seed_screen_do_nothing():
 def test_leaving_asks_for_confirmation():
     game = Game.new(seed=42)
 
-    assert LeaveState(game).draw() == [
+    assert _parts(LeaveState(game).draw()) == (
         "Leave this game?",
-        "",
-        "Your progress on seed 42 will be lost.",
-        "",
-        "  y   Leave",
-        "  any other key to keep playing",
-    ]
+        ["Your progress on seed 42 will be lost."],
+        "y to leave   any other key to keep playing",
+        [],
+    )
 
 
 def test_y_leaves_the_game_for_the_title_screen():
@@ -528,7 +536,7 @@ def test_the_inventory_marks_the_weapon_in_hand():
     game = game_on(ROOM, position=(2, 2))
     game.player.inventory = [DAGGER, POTION, SWORD, SWORD]
 
-    assert InventoryState(game).draw()[2:6] == [
+    assert _parts(InventoryState(game).draw())[1] == [
         "  ) dagger",
         "  ! potion",
         "  / sword   (in hand)",
@@ -569,15 +577,16 @@ def test_the_game_over_screen_says_what_killed_the_player_and_where():
     game = _about_to_die()
     PlayingState(game).handle("d")
 
-    assert GameOverState(game).draw() == [
-        "You died.",
-        "",
-        "The goblin killed you on level 1 of 3 of seed 1.",
-        "You were carrying:",
-        "  nothing at all.",
-        "",
+    assert _parts(GameOverState(game).draw()) == (
+        "You died",
+        [
+            "The goblin killed you on level 1 of 3 of seed 1.",
+            "You were carrying:",
+            "  nothing at all.",
+        ],
         "Press any key to go back to the title.",
-    ]
+        [],
+    )
 
 
 def test_the_game_over_screen_lists_what_the_player_was_carrying():
@@ -585,7 +594,7 @@ def test_the_game_over_screen_lists_what_the_player_was_carrying():
     game.player.inventory = [POTION, GOLD]
     PlayingState(game).handle("d")
 
-    assert GameOverState(game).draw()[3:6] == [
+    assert _parts(GameOverState(game).draw())[1][1:] == [
         "You were carrying:",
         "  ! potion",
         "  $ gold",
@@ -680,12 +689,10 @@ def test_the_end_screens_show_how_to_replay_settings_that_arent_the_defaults():
     lost = GameOverState(_with_settings(_about_to_die(), settings))
 
     for screen in (won, lost):
-        lines = screen.draw()
-        assert lines[-4:] == [
+        # Below the edge, so the code is never cut short or mixed with it.
+        assert _parts(screen.draw())[3] == [
             "Replay these settings with:",
             f"--settings-code {settings.code}",
-            "",
-            "Press any key to go back to the title.",
         ]
 
 
@@ -703,4 +710,24 @@ def test_goodbyes_add_the_replay_code_for_settings_that_arent_the_defaults():
         f"Goodbye! You reached level 1 of seed 42 (settings {settings.fingerprint}).",
         "Replay these settings with:",
         f"--settings-code {settings.code}",
+    ]
+
+
+@pytest.mark.parametrize(
+    "screen", [InventoryState, HelpState, LogState, LeaveState, WinState, GameOverState]
+)
+def test_every_screen_of_a_game_is_the_same_size_as_the_playing_screen(screen):
+    game = _about_to_die()
+
+    playing, lines = PlayingState(game).draw(), screen(game).draw()
+
+    assert {len(line) for line in lines} == {len(playing[0])}
+    assert len(lines) == len(playing)
+
+
+def test_the_title_screen_keeps_its_own_look():
+    assert _title().draw()[:3] == [
+        "+------------------------------+",
+        "|       DUNGEON EXPLORER       |",
+        "+------------------------------+",
     ]
