@@ -16,7 +16,12 @@ A turn-based dungeon explorer drawn in ASCII in the terminal. Each level is gene
 - **Python, pytest and ruff, in `dungeon-explorer/`.** The person chose these. `random.Random(seed)` makes generation repeatable with no dependencies.
 - **uv manages the environment,** through `pyproject.toml` and a committed `uv.lock`. It's already installed, and `uv run` gives everyone the same pytest and ruff versions. The project needs Python 3.12 or later, so hackathon machines without the newest Python can still run it, and the checks are run on both 3.12 and 3.14.
 - **Line-based commands:** type a command and press Enter. `input()` is easy to drive from tests and works in any terminal. curses would give single keypresses, but it's hard to test and Windows doesn't ship it. The cost is pressing Enter after every move.
-- **A pure core, with input and output only in the CLI.** Generation, the game rules and rendering return data or strings, so tests can check exact output without a terminal.
+- **Model, view and presenter, built from Robert Nystrom's *Game Programming Patterns*.** The person chose this.
+  - **Model:** `level`, `generate` and `game` hold the state and the rules, and never print.
+  - **View:** `render` is pure functions that turn the model into text.
+  - **Presenter:** three of the book's patterns. **Command** (`commands`) turns typed input into objects that act on the model. **State** (`states`) gives each screen (playing, inventory and help) its own drawing and input handling, and returns the next state. The **Game Loop** (`cli`) draws the current state, reads a line and hands it over, until there's no next state.
+
+  Only `cli` reads input or prints, so tests can check exact output without a terminal. MVVM was considered and dropped: its ViewModel exists to feed a data-binding framework, which a terminal doesn't have, and a turn-based game redraws the whole screen every turn anyway.
 - **Each level's seed comes from the game seed and the depth,** so level N of seed S is always the same, whatever the player did on the levels before it.
 - **Items are picked up automatically** when the player steps on them. The acceptance criteria need an inventory, not a pick-up command, and it means one less command.
 - **Rogue-style exploration:** entering a room reveals the whole room and its walls, and the eight tiles around the player are always revealed, which maps corridors as the player walks them. This is deterministic and needs no line-of-sight maths.
@@ -27,7 +32,7 @@ A turn-based dungeon explorer drawn in ASCII in the terminal. Each level is gene
 | # | Commit message | What it covers | Status |
 | --- | --- | --- | --- |
 | 1 | `chore(dungeon-explorer): scaffold with pytest and ruff (TKT-05)` | `dungeon-explorer/` containing `pyproject.toml` (managed by uv, with pytest and ruff as dev dependencies and the ruff settings), `uv.lock`, the `src/dungeon_explorer` package, one smoke test, `.gitignore`, and a README explaining how to run the checks. | ✅ |
-| 2 | `feat(generate): place seeded rooms on a level (TKT-05)` | A `Level` made of wall and floor tiles, and `generate_level(seed, depth)`, which carves non-overlapping rectangular rooms into it. Tests: rooms stay inside the level and never overlap or touch; the same seed and depth always give the same level; different seeds give different levels. | |
+| 2 | `feat(generate): place seeded rooms on a level (TKT-05)` | A `Level` made of wall and floor tiles, and `generate_level(seed, depth)`, which carves non-overlapping rectangular rooms into it. Tests: rooms stay inside the level and never overlap or touch; the same seed and depth always give the same level; different seeds give different levels. | ✅ |
 | 3 | `feat(generate): join the rooms with corridors (TKT-05)` | L-shaped corridors carved from each room to the next. Tests: a flood fill from the first room reaches every floor tile; the same seed always gives the same corridors. | |
 | 4 | `feat(generate): place items, stairs and start (TKT-05)` | The player's start in the first room, stairs down (`>`) in a different room, and a few items on room floors: potion `!`, gold `$`, scroll `?`, dagger `)`. Tests: everything sits on floor and no two share a tile; the stairs aren't in the start room; the same seed always gives the same placement. | |
 | 5 | `feat(game): move the player one step at a time (TKT-05)` | A `Game` that holds the level, the player's position and the depth. `move(direction)` steps one tile north, south, east or west; walking into a wall leaves the player in place and gives a message. Tests: every direction, and walls and the level's edges blocking. | |
@@ -36,7 +41,9 @@ A turn-based dungeon explorer drawn in ASCII in the terminal. Each level is gene
 | 8 | `feat(game): track the explored tiles (TKT-05)` | Rogue-style exploration, as described under Decisions; a new level starts with nothing explored. Tests: the start room is explored at the start, walking a corridor reveals its neighbours, and unvisited rooms stay unexplored. | |
 | 9 | `feat(render): draw the view around the player (TKT-05)` | A 31×15 view, centred on the player at full scale, showing explored tiles, items, stairs and `@`. Anything unexplored or off the level is blank. Tests compare exact strings drawn from a small hand-built level. | |
 | 10 | `feat(render): draw the mini-map of explored tiles (TKT-05)` | The whole level at half scale, one character for every 2×2 block of tiles: `@` for the player, `>` for stairs once seen, `.` for explored floor, `#` for explored walls, and blank for everything else. Tests compare exact strings. | |
-| 11 | `feat(cli): play the game in the terminal (TKT-05)` | The game loop. It parses commands (`w` `a` `s` `d` to move, `i` inventory, `>` descend, `?` help, `q` quit) and each turn draws the view, the mini-map, the depth, the seed and the last message. It's started with `dungeon-explorer --seed N`; without a seed it picks one and shows it. Adds a "How to play" section to the README. Tests drive the loop with scripted input and check what it prints. | |
+| 11 | `feat(commands): turn typed input into commands (TKT-05)` | The Command pattern: `Move(direction)` and `Descend`, each with `execute(game)`, and `parse_command(text)`, which maps `w` `a` `s` `d` and `>` to them and anything else to no command. Tests: each key gives the right command; running a command changes the game just as `move` or `descend` would; unknown input gives no command. | |
+| 12 | `feat(states): add the playing, inventory and help screens (TKT-05)` | The State pattern: each state draws its screen and handles a line of input, returning the next state, or nothing to quit. Playing draws the view and mini-map from `render`, with the depth, the seed and the last message, and runs commands. From Playing, `i` opens the inventory, `?` the help, and `q` quits. Any input on the inventory or help screen goes back to playing. Tests: every transition, and what each screen draws. | |
+| 13 | `feat(cli): run the game loop in the terminal (TKT-05)` | The Game Loop: draw the current state, read a line, hand it over, and stop when there's no next state. It's started with `dungeon-explorer --seed N`; without a seed it picks one and shows it. Adds a "How to play" section to the README. Tests drive the loop with scripted input and check what it prints. | |
 
 ## Post-commit testing
 
@@ -46,7 +53,7 @@ A turn-based dungeon explorer drawn in ASCII in the terminal. Each level is gene
 | 2 | It runs from a fresh clone by following the README | Clone the branch into a temporary folder and follow the README's steps through to `uv run dungeon-explorer --seed 42`. The first screen draws with no errors. | |
 | 3 | The same seed always draws the same dungeon | Run `printf 'q\n' \| uv run dungeon-explorer --seed 42` twice and diff the two outputs: they match. With `--seed 43`, the output differs. | |
 | 4 | Walls block movement | Play with `--seed 42` and walk into a wall. The `@` doesn't move, and the message says a wall is in the way. | |
-| 5 | Picked-up items appear in the inventory | Walk onto an item and see the pick-up message, then enter `i`: the item is listed. | |
+| 5 | Picked-up items appear in the inventory | Walk onto an item and see the pick-up message, then enter `i`: the inventory screen lists the item, and any input goes back to the game. | |
 | 6 | The stairs lead down | `>` away from the stairs is refused. On the stairs, it draws level 2, the depth shows 2 and the inventory is unchanged. Replaying the same seed gives the same level 2. | |
 | 7 | The mini-map shows only the explored parts | At the start, the mini-map shows only the start room. Walking a corridor fills it in behind the player, and the unexplored parts stay blank. | |
 
@@ -67,3 +74,4 @@ Once every acceptance criterion is met, a team with time to spare can add these 
 - Monsters that chase the player when they can see them
 - Attacking a monster by walking into it
 - Hit points, and game over when they reach zero
+- Settings such as the level size, the rooms, the view size and the items, read from a TOML file with `tomllib`. A seed then only reproduces a dungeon with the same settings, so this also needs a way for a replay to know which settings were used.
