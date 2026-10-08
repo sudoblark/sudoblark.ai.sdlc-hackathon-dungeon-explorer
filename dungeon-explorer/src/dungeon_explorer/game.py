@@ -1,17 +1,21 @@
 """The state of a game in play, and the rules for changing it."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Self
 
 from dungeon_explorer.generate import generate_level
-from dungeon_explorer.level import Direction, Level, Point, Tile
+from dungeon_explorer.level import Direction, Item, Level, Point, Tile
 
 
 @dataclass
 class Player:
-    """The person exploring the dungeon."""
+    """The person exploring the dungeon.
+
+    `inventory` holds what they've picked up, in the order they picked it up.
+    """
 
     position: Point
+    inventory: list[Item] = field(default_factory=list)
 
 
 @dataclass
@@ -34,13 +38,25 @@ class Game:
         return cls(seed=seed, level=level, player=Player(level.player_start))
 
     def move(self, direction: Direction) -> None:
-        """Step the player one tile, unless there's a wall in the way."""
+        """Step the player one tile, unless there's a wall in the way.
+
+        Anything on the tile they step onto goes into their inventory.
+        """
         target = direction.step_from(self.player.position)
         if not self._is_floor(target):
             self.message = "A wall is in the way."
             return
         self.player.position = target
         self.message = ""
+        self._pick_up()
+
+    def _pick_up(self) -> None:
+        """Move any item under the player off the level and into their inventory."""
+        item = self.level.items.pop(self.player.position, None)
+        if item is None:
+            return
+        self.player.inventory.append(item)
+        self.message = f"You pick up the {item.name}."
 
     def _is_floor(self, point: Point) -> bool:
         """Whether `point` is on the level and is floor, so it can be walked on."""
