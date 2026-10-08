@@ -39,7 +39,7 @@ In a game, press a key; there's no need to press Enter:
 | `?` | Show the help |
 | `q` | Leave the game for the title screen, after asking you to press `y` |
 
-The left panel shows the area around you, and the right panel is a mini-map of the whole level at half size, with a key to the symbols beside it. Both show only what you've explored: entering a room reveals all of it, and corridors are mapped as you walk them. Walk onto an item to pick it up. The newest three messages show under the map, and a message that repeats is counted rather than repeated.
+Under the title banner and the status line, the View panel shows the area around you, the Map panel is a mini-map of the whole level at half size, and the Key panel explains the symbols. Messages sit below them, and the keys are in a bar along the bottom. Both show only what you've explored: entering a room reveals all of it, and corridors are mapped as you walk them. Walk onto an item to pick it up. The newest three messages show under the map, and a message that repeats is counted rather than repeated.
 
 | Symbol | What it is |
 | --- | --- |

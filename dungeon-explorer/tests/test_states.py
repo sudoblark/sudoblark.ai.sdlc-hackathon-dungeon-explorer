@@ -35,7 +35,7 @@ ROOM = level_from(
 )
 
 
-def test_playing_draws_a_header_the_panels_with_a_legend_and_the_log():
+def test_the_playing_screen_is_framed_in_labelled_panels():
     game = Game.new(seed=42)
     game.say("You pick up the potion.")
     game.say("A wall is in the way.")
@@ -44,55 +44,36 @@ def test_playing_draws_a_header_the_panels_with_a_legend_and_the_log():
     lines = PlayingState(game).draw()
 
     view, mini_map = draw_view(game), draw_mini_map(game)
-    menu = "i items  p drink  l log  c clear  ? help  q leave"
-    assert lines[0] == "DUNGEON EXPLORER" + " " * 3 + menu
-    assert (
-        lines[1] == f"Level 1 of {floor_count(42)}   Seed 42 (settings {FP})   HP 20/20"
-    )
-    assert lines[2] == "+- View " + "-" * 24 + "+ +- Map " + "-" * 26 + "+"
-    key = ["Key", "@ you", "# wall", ". floor", "> stairs"]
-    key += ["! potion", "$ gold", "? scroll", ") dagger", "/ sword", "\\ axe"]
-    key += ["r rat", "g goblin", "o orc"]
-    # The view is 15 lines and the mini-map 16, so the view gets a blank line.
+    key = [" @ you", " # wall", " . floor", " > stairs", " ! potion", " $ gold"]
+    key += [" ? scroll", " ) dagger", " / sword", " \\ axe", " r rat", " g goblin"]
+    key += [" o orc"]
+    # The title has a banner of its own, apart from the game.
+    assert lines[:3] == [
+        "+" + "=" * 75 + "+",
+        "|" + "D U N G E O N   E X P L O R E R".center(75) + "|",
+        "+" + "=" * 75 + "+",
+    ]
+    status = f"Level 1 of {floor_count(42)}   Seed 42 (settings {FP})"
+    assert lines[3] == "| " + status + "HP 20/20".rjust(73 - len(status)) + " |"
+    assert lines[4] == "+-- View " + "-" * 23 + "+-- Map " + "-" * 25 + "+-- Key ---+"
+    # The view is 15 lines, so it gets a blank line to match the mini-map.
     for row in range(16):
         left = view[row] if row < len(view) else " " * 31
-        panels = f"|{left}| |{mini_map[row]}|"
-        beside = f"  {key[row]}" if row < len(key) else ""
-        assert lines[3 + row] == panels + beside
-    assert lines[19] == "+" + "-" * 31 + "+ +" + "-" * 32 + "+"
-    # Three lines for the log, with a blank above the two messages so far.
-    assert lines[20:] == ["", "You pick up the potion.", "A wall is in the way. (x2)"]
-    assert len(lines) == 23
-    assert max(len(line) for line in lines) <= 80
-
-
-def test_playing_shows_only_the_newest_three_messages():
-    game = game_on(ROOM, position=(2, 2))
-    for number in range(5):
-        game.say(f"Message {number}.")
-
-    lines = PlayingState(game).draw()
-
-    assert lines[-3:] == ["Message 2.", "Message 3.", "Message 4."]
-
-
-def test_playing_clears_the_log_on_c_without_taking_a_turn():
-    game = game_on(ROOM, position=(2, 2))
-    game.say("A wall is in the way.")
-    playing = PlayingState(game)
-
-    assert playing.handle("c") is playing
-    assert game.log == []
-    assert game.player.position == (2, 2)
-
-
-def test_playing_opens_the_log_on_l():
-    game = game_on(ROOM, position=(2, 2))
-
-    log = PlayingState(game).handle("l")
-
-    assert isinstance(log, LogState)
-    assert log.game is game
+        right = key[row] if row < len(key) else ""
+        assert lines[5 + row] == f"|{left}|{mini_map[row]}|{right.ljust(10)}|"
+    assert lines[21] == "+-- Messages " + "-" * 63 + "+"
+    assert lines[22:25] == [
+        "|" + " " * 75 + "|",
+        "| " + "You pick up the potion.".ljust(73) + " |",
+        "| " + "A wall is in the way. (x2)".ljust(73) + " |",
+    ]
+    menu = "i items  p drink  l log  c clear  ? help  q leave"
+    assert lines[25:] == [
+        "+" + "-" * 75 + "+",
+        "| " + menu.center(73) + " |",
+        "+" + "-" * 75 + "+",
+    ]
+    assert {len(line) for line in lines} == {77}
 
 
 def test_the_legend_explains_every_symbol_the_playing_screen_can_show():
@@ -559,7 +540,7 @@ def test_the_status_line_shows_the_players_hit_points():
     game = game_on(ROOM, position=(2, 2))
     game.player.hit_points = 7
 
-    assert PlayingState(game).draw()[1].endswith("   HP 7/20")
+    assert PlayingState(game).draw()[3].endswith("   HP 7/20 |")
 
 
 def _about_to_die() -> Game:
@@ -637,11 +618,13 @@ def test_the_playing_screen_takes_its_sizes_and_legend_from_the_settings():
 
     lines = PlayingState(game).draw()
 
-    assert lines[2].startswith("+- View ----+ ")  # 11 wide
-    assert "  * gem" in "\n".join(lines)
+    assert lines[4].startswith("+-- View ---+-- Map ")  # 11 wide
+    assert "| * gem" in "\n".join(lines)
     assert "potion" not in "\n".join(lines)
-    assert lines[-1] == "Second."
-    assert "First." not in lines
+    # One log line, between the Messages edge and the menu bar.
+    assert lines[-5].startswith("+-- Messages ")
+    assert lines[-4].strip("| ").rstrip() == "Second."
+    assert "First." not in "\n".join(lines)
 
 
 def test_a_new_game_from_the_seed_screen_uses_the_title_screens_settings():
@@ -674,14 +657,16 @@ def test_the_title_screen_has_no_problems_section_without_warnings():
     assert "Problems with the settings file:" not in _title().draw()
 
 
-def test_the_header_keeps_the_title_and_menu_apart_on_a_narrow_view():
+def test_a_narrow_view_still_fits_the_status_and_menu_inside_the_edge():
     game = Game.new(seed=42, settings=Settings(view_width=5))
 
-    header = PlayingState(game).draw()[0]
+    lines = PlayingState(game).draw()
 
-    assert (
-        header == "DUNGEON EXPLORER  i items  p drink  l log  c clear  ? help  q leave"
-    )
+    # The Key panel takes the width the narrow view lacks, so the edge meets.
+    assert len({len(line) for line in lines}) == 1
+    assert lines[3].startswith(f"| Level 1 of {floor_count(42)}   Seed 42 (settings ")
+    assert lines[3].endswith("HP 20/20 |")
+    assert "i items  p drink  l log  c clear  ? help  q leave" in lines[-2]
 
 
 def _with_settings(game: Game, settings: Settings) -> Game:

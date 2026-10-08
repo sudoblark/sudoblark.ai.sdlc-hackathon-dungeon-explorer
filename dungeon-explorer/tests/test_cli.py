@@ -1,4 +1,5 @@
 import os
+import re
 from collections.abc import Callable
 
 import pytest
@@ -50,6 +51,13 @@ def _script(*lines: str) -> Callable[[str], str]:
             raise EOFError from None
 
     return read_line
+
+
+def _status(out: str) -> str:
+    """The first status line in `out`, without the screen's edge or the padding
+    that pushes the hit points to the right."""
+    line = next(line for line in out.splitlines() if "   Seed " in line)
+    return re.sub(" {3,}", "   ", line.strip("| "))
 
 
 def test_the_loop_draws_each_screen_and_hands_each_line_to_it():
@@ -119,8 +127,8 @@ def test_a_new_game_plays_the_seed_given_on_the_command_line(monkeypatch, capsys
 
     assert code == 0
     assert (
-        f"Level 1 of {floor_count(42)}   Seed 42 (settings {FP})   HP 20/20"
-        in out.splitlines()
+        _status(out)
+        == f"Level 1 of {floor_count(42)}   Seed 42 (settings {FP})   HP 20/20"
     )
     assert out.strip().endswith("Goodbye!")
 
@@ -132,8 +140,8 @@ def test_a_typed_seed_replaces_the_one_filled_in(monkeypatch, capsys):
     _, out = _play(monkeypatch, capsys, ["--seed", "42"], *script)
 
     assert (
-        f"Level 1 of {floor_count(7)}   Seed 7 (settings {FP})   HP 20/20"
-        in out.splitlines()
+        _status(out)
+        == f"Level 1 of {floor_count(7)}   Seed 7 (settings {FP})   HP 20/20"
     )
 
 
@@ -153,8 +161,8 @@ def test_without_a_seed_the_command_picks_one_and_shows_it(monkeypatch, capsys):
     _, out = _play(monkeypatch, capsys, [], *START, "d")
 
     assert (
-        f"Level 1 of {floor_count(123456)}   Seed 123456 (settings {FP})   HP 20/20"
-        in out.splitlines()
+        _status(out)
+        == f"Level 1 of {floor_count(123456)}   Seed 123456 (settings {FP})   HP 20/20"
     )
     assert out.strip().endswith(f"You reached level 1 of seed 123456 (settings {FP}).")
 
@@ -278,9 +286,7 @@ def test_the_command_plays_with_the_settings_file_it_is_given(
 
     _, out = _play(monkeypatch, capsys, argv, *START, *LEAVE, *EXIT)
 
-    assert (
-        f"Level 1 of 2   Seed 42 (settings {TWO_FLOORS})   HP 20/20" in out.splitlines()
-    )
+    assert _status(out) == f"Level 1 of 2   Seed 42 (settings {TWO_FLOORS})   HP 20/20"
 
 
 def test_settings_toml_in_the_folder_is_read_without_asking(
@@ -293,9 +299,7 @@ def test_settings_toml_in_the_folder_is_read_without_asking(
 
     _, out = _play(monkeypatch, capsys, ["--seed", "42"], *START, *LEAVE, *EXIT)
 
-    assert (
-        f"Level 1 of 2   Seed 42 (settings {TWO_FLOORS})   HP 20/20" in out.splitlines()
-    )
+    assert _status(out) == f"Level 1 of 2   Seed 42 (settings {TWO_FLOORS})   HP 20/20"
 
 
 def test_problems_with_the_settings_show_on_the_title_screen(
@@ -317,9 +321,7 @@ def test_the_command_plays_with_the_settings_a_code_gives(monkeypatch, capsys):
         monkeypatch, capsys, ["--seed", "42", "--settings-code", code], *START, "d"
     )
 
-    assert (
-        f"Level 1 of 2   Seed 42 (settings {TWO_FLOORS})   HP 20/20" in out.splitlines()
-    )
+    assert _status(out) == f"Level 1 of 2   Seed 42 (settings {TWO_FLOORS})   HP 20/20"
     assert out.strip().endswith(f"--settings-code {code}")
 
 

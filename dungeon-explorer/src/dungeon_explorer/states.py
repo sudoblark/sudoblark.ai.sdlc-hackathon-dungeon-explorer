@@ -23,6 +23,8 @@ from dungeon_explorer.settings import DEFAULT_SETTINGS, Settings
 BACK = "Press any key to go back."
 TO_TITLE = "Press any key to go back to the title."
 TITLE = "DUNGEON EXPLORER"
+# The title spaced out, for the banner above the game.
+BANNER = " ".join(TITLE)
 MENU = "i items  p drink  l log  c clear  ? help  q leave"
 # The keys that mean Enter: a terminal sends "\n" or "\r", and piped input
 # reads an empty line.
@@ -163,37 +165,46 @@ class _InGameState(State):
 
 
 class PlayingState(_InGameState):
-    """The dungeon: a header, the view and mini-map with a legend beside
-    them, and the newest messages underneath."""
+    """The dungeon, framed in one edge: the title banner, the status line, the
+    View, Map and Key panels, the newest messages, and the menu."""
 
     def draw(self) -> list[str]:
         game = self.game
-        view = draw_view(game)
-        mini_map = draw_mini_map(game)
-        height = max(len(view), len(mini_map))
-        left = _frame(view, height, "View")
-        right = _frame(mini_map, height, "Map")
-        panels = [f"{a} {b}" for a, b in zip(left, right, strict=True)]
-        width = len(panels[0])
-        # The legend starts level with the top of the panels' contents.
-        symbols = legend(game.settings)
-        key = ["", "Key", *(f"{glyph} {name}" for glyph, name in symbols)]
-        beside = [
-            f"{panel}  {key[row]}" if row < len(key) and key[row] else panel
-            for row, panel in enumerate(panels)
-        ]
-        # Blank lines above the newest messages keep the screen the same height.
-        log_lines = game.settings.log_lines
-        newest = [str(message) for message in game.log[-log_lines:]]
-        return [
-            # The menu sits at the panels' right edge, but never touches the title.
-            TITLE + MENU.rjust(max(width - len(TITLE), len(MENU) + 2)),
+        view, mini_map = draw_view(game), draw_mini_map(game)
+        key = [f" {glyph} {name}" for glyph, name in legend(game.settings)]
+        height = max(len(view), len(mini_map), len(key))
+        status = (
             f"Level {game.depth} of {game.floors}   Seed {game.seed}"
             f" (settings {game.settings.fingerprint})"
-            f"   HP {game.player.hit_points}/{PLAYER_HIT_POINTS}",
-            *beside,
-            *[""] * (log_lines - len(newest)),
-            *newest,
+        )
+        hit_points = f"HP {game.player.hit_points}/{PLAYER_HIT_POINTS}"
+        # The Key panel takes any width the panels lack, so the status line,
+        # the menu and the banner always fit inside the edge.
+        key_width = max(len(line) for line in key) + 1
+        needed = max(len(status) + len(hit_points) + 5, len(MENU) + 2, len(BANNER) + 2)
+        key_width = max(key_width, needed - len(view[0]) - len(mini_map[0]) - 2)
+        width = len(view[0]) + 1 + len(mini_map[0]) + 1 + key_width
+        columns = [
+            _pad(view, len(view[0]), height),
+            _pad(mini_map, len(mini_map[0]), height),
+            _pad(key, key_width, height),
+        ]
+        log_lines = game.settings.log_lines
+        newest = [str(message) for message in game.log[-log_lines:]]
+        # Blank lines above the newest messages keep the screen the same height.
+        messages = [""] * (log_lines - len(newest)) + newest
+        return [
+            *_banner(width),
+            _row(status + hit_points.rjust(width - len(status) - 2), width),
+            _labelled_edge(
+                [("View", len(view[0])), ("Map", len(mini_map[0])), ("Key", key_width)]
+            ),
+            *("|" + "|".join(parts) + "|" for parts in zip(*columns, strict=True)),
+            _labelled_edge([("Messages", width)]),
+            *(_row(message, width) for message in messages),
+            _edge(width),
+            _row(MENU.center(width - 2), width),
+            _edge(width),
         ]
 
     def handle(self, text: str) -> State | None:
@@ -411,11 +422,35 @@ def _carried(game: Game) -> list[str]:
     return items or ["  nothing at all."]
 
 
-def _frame(lines: list[str], height: int, label: str) -> list[str]:
-    """Put a border round `lines`, with `label` in its top edge, first padding
-    them with blank lines to `height`."""
-    width = len(lines[0])
-    padded = lines + [" " * width] * (height - len(lines))
-    top = f"+- {label} ".ljust(width + 1, "-") + "+"
-    bottom = "+" + "-" * width + "+"
-    return [top, *(f"|{line}|" for line in padded), bottom]
+def _banner(width: int) -> list[str]:
+    """The title in a box of its own, `width` inside, to sit above the game."""
+    return [_edge(width, "="), _row(BANNER.center(width - 2), width), _edge(width, "=")]
+
+
+def _edge(width: int, fill: str = "-") -> str:
+    """A border `width` inside, such as the top or bottom of a box."""
+    return "+" + fill * width + "+"
+
+
+def _labelled_edge(panels: list[tuple[str, int]]) -> str:
+    """The border along the tops of panels side by side, each with its label,
+    and sharing the borders between them. A panel too narrow for its label
+    goes without, so the border still lines up."""
+    edges = []
+    for label, width in panels:
+        labelled = f"-- {label} "
+        edges.append(
+            labelled.ljust(width, "-") if len(labelled) <= width else "-" * width
+        )
+    return "+" + "+".join(edges) + "+"
+
+
+def _row(text: str, width: int) -> str:
+    """A line of a box `width` inside, with a space before `text`. Anything
+    too long is cut short, so the edge always lines up."""
+    return "| " + text[: width - 2].ljust(width - 2) + " |"
+
+
+def _pad(lines: list[str], width: int, height: int) -> list[str]:
+    """`lines` made `width` wide and `height` tall with blank space."""
+    return [line.ljust(width) for line in lines] + [" " * width] * (height - len(lines))
