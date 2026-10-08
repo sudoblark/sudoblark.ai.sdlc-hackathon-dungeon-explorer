@@ -4,11 +4,11 @@ import pytest
 from helpers import game_on, level_from
 
 from dungeon_explorer.game import Game
-from dungeon_explorer.generate import ITEMS, MONSTERS, floor_count
+from dungeon_explorer.generate import floor_count
 from dungeon_explorer.level import Item, Monster, Tile
 from dungeon_explorer.render import PLAYER, STAIRS_DOWN, draw_mini_map, draw_view
+from dungeon_explorer.settings import DEFAULT_SETTINGS, Settings
 from dungeon_explorer.states import (
-    LEGEND,
     GameOverState,
     HelpState,
     InventoryState,
@@ -18,6 +18,7 @@ from dungeon_explorer.states import (
     SeedState,
     TitleState,
     WinState,
+    legend,
 )
 
 POTION = Item("potion", "!")
@@ -91,11 +92,11 @@ def test_playing_opens_the_log_on_l():
 
 
 def test_the_legend_explains_every_symbol_the_playing_screen_can_show():
-    glyphs = {glyph for glyph, _ in LEGEND}
+    glyphs = {glyph for glyph, _ in legend(DEFAULT_SETTINGS)}
 
     assert {PLAYER, STAIRS_DOWN, Tile.WALL, Tile.FLOOR} <= glyphs
-    assert {item.glyph for item, _ in ITEMS} <= glyphs
-    assert {monster.glyph for monster, _ in MONSTERS} <= glyphs
+    assert {item.glyph for item, _ in DEFAULT_SETTINGS.items} <= glyphs
+    assert {monster.glyph for monster, _ in DEFAULT_SETTINGS.monsters} <= glyphs
 
 
 @pytest.mark.parametrize(
@@ -612,3 +613,29 @@ def test_the_game_over_screen_says_goodbye_with_the_level_and_seed():
     game = _about_to_die()
 
     assert GameOverState(game).goodbye() == "Goodbye! You died on level 1 of seed 1."
+
+
+def test_the_playing_screen_takes_its_sizes_and_legend_from_the_settings():
+    gem = Item("gem", "*")
+    settings = Settings(view_width=11, view_height=5, log_lines=1, items=((gem, 1),))
+    game = Game.new(seed=42, settings=settings)
+    game.say("First.")
+    game.say("Second.")
+
+    lines = PlayingState(game).draw()
+
+    assert lines[2].startswith("+- View ----+ ")  # 11 wide
+    assert "  * gem" in "\n".join(lines)
+    assert "potion" not in "\n".join(lines)
+    assert lines[-1] == "Second."
+    assert "First." not in lines
+
+
+def test_a_new_game_from_the_seed_screen_uses_the_title_screens_settings():
+    settings = Settings(min_floors=2, max_floors=2)
+    title = TitleState(None, random_seed=lambda: 5, settings=settings)
+
+    playing = SeedState(title, digits="7").handle("")
+
+    assert playing.game.settings is settings
+    assert playing.game.floors == 2

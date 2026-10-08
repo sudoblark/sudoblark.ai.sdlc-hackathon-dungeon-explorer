@@ -15,9 +15,9 @@ from dataclasses import dataclass
 
 from dungeon_explorer.commands import parse_command
 from dungeon_explorer.game import PLAYER_HIT_POINTS, Game
-from dungeon_explorer.generate import ITEMS, MONSTERS
 from dungeon_explorer.level import Tile
 from dungeon_explorer.render import PLAYER, STAIRS_DOWN, draw_mini_map, draw_view
+from dungeon_explorer.settings import DEFAULT_SETTINGS, Settings
 
 BACK = "Press any key to go back."
 TO_TITLE = "Press any key to go back to the title."
@@ -30,19 +30,8 @@ ENTER = ("", "\n", "\r")
 BACKSPACE = ("\x7f", "\b")
 # Long enough for any seed you'd want to type, short enough to show.
 SEED_DIGITS = 9
-# How many of the newest messages show under the map.
-LOG_LINES = 3
 # How many messages the log screen shows at once.
 LOG_PAGE = 20
-# Every symbol the playing screen can show, and what it means.
-LEGEND = [
-    (PLAYER, "you"),
-    (Tile.WALL, "wall"),
-    (Tile.FLOOR, "floor"),
-    (STAIRS_DOWN, "stairs"),
-    *((item.glyph, item.name) for item, _ in ITEMS),
-    *((monster.glyph, monster.name) for monster, _ in MONSTERS),
-]
 
 
 class State(ABC):
@@ -72,6 +61,7 @@ class TitleState(State):
     seed: int | None
     random_seed: Callable[[], int]
     choice: int = 0
+    settings: Settings = DEFAULT_SETTINGS
 
     OPTIONS = ("New game", "Exit")
 
@@ -128,7 +118,7 @@ class SeedState(State):
     def handle(self, text: str) -> State | None:
         if text in ENTER:
             seed = int(self.digits) if self.digits else self.title.random_seed()
-            return PlayingState(Game.new(seed), self.title)
+            return PlayingState(Game.new(seed, self.title.settings), self.title)
         if text in BACKSPACE:
             self.digits = self.digits[:-1]
         elif text.isdigit():
@@ -169,19 +159,21 @@ class PlayingState(_InGameState):
         panels = [f"{a} {b}" for a, b in zip(left, right, strict=True)]
         width = len(panels[0])
         # The legend starts level with the top of the panels' contents.
-        key = ["", "Key", *(f"{glyph} {name}" for glyph, name in LEGEND)]
+        symbols = legend(game.settings)
+        key = ["", "Key", *(f"{glyph} {name}" for glyph, name in symbols)]
         beside = [
             f"{panel}  {key[row]}" if row < len(key) and key[row] else panel
             for row, panel in enumerate(panels)
         ]
         # Blank lines above the newest messages keep the screen the same height.
-        newest = [str(message) for message in game.log[-LOG_LINES:]]
+        log_lines = game.settings.log_lines
+        newest = [str(message) for message in game.log[-log_lines:]]
         return [
             TITLE + MENU.rjust(width - len(TITLE)),
             f"Level {game.depth} of {game.floors}   Seed {game.seed}"
             f"   HP {game.player.hit_points}/{PLAYER_HIT_POINTS}",
             *beside,
-            *[""] * (LOG_LINES - len(newest)),
+            *[""] * (log_lines - len(newest)),
             *newest,
         ]
 
@@ -356,6 +348,18 @@ class LogState(_InGameState):
             self.scroll = max(self.scroll - 1, 0)
             return self
         return PlayingState(self.game, self.title)
+
+
+def legend(settings: Settings) -> list[tuple[str, str]]:
+    """Every symbol the playing screen can show, and what it means."""
+    return [
+        (PLAYER, "you"),
+        (Tile.WALL, "wall"),
+        (Tile.FLOOR, "floor"),
+        (STAIRS_DOWN, "stairs"),
+        *((item.glyph, item.name) for item, _ in settings.items),
+        *((monster.glyph, monster.name) for monster, _ in settings.monsters),
+    ]
 
 
 def _carried(game: Game) -> list[str]:

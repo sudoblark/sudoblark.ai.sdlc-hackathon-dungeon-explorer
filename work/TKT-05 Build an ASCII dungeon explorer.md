@@ -51,7 +51,7 @@ A turn-based dungeon explorer drawn in ASCII in the terminal. Each level is gene
 
 ### Stretch goals
 
-Rows 15 to 29 are stretch goals, added once every acceptance criterion was met.
+Rows 15 to 30 are stretch goals, added once every acceptance criterion was met.
 
 | # | Commit message | What it covers | Status |
 | --- | --- | --- | --- |
@@ -67,9 +67,10 @@ Rows 15 to 29 are stretch goals, added once every acceptance criterion was met.
 | 24 | `feat(game): attack a monster by walking into it (TKT-05)` | Walking into a monster hits it instead of moving. Monsters have hit points and are removed at zero, with messages. The person chose damage by weapon, with fists doing 1: a dagger `)` does 2 from floor 1, a sword `/` 3 from floor 2, and an axe `\` 4 from floor 4, configurable later through the TOML file. The player always fights with the strongest weapon carried, which the inventory marks as in hand. An attack is a turn. Tests: hitting, killing and the messages. | ✅ |
 | 25 | `feat(game): monsters hit back and hit points run out (TKT-05)` | The player has hit points, shown on the status line, and monsters hit back. The person chose 20 hit points, which stay fixed rather than becoming a setting, since nothing can raise them until there's a levelling system, and monsters that move or attack: on its turn, a monster next to the player attacks instead of moving, so one that has just arrived waits a turn. Tests: taking damage, the status line, and hit points stopping at zero. | ✅ |
 | 26 | `feat(game): drink a potion to heal (TKT-05)` | `p` drinks a potion from the inventory, healing 5 hit points up to the most the player can have. Drinking is a turn, so monsters then act. With no potions, or at full health, it says so and isn't a turn. The person chose drinking with a key over healing on pick-up, when choosing hit points in row 25. Tests: healing, the cap, the potion leaving the inventory, and the two refusals. | ✅ |
-| 27 | `feat(states): show a game over screen at zero hit points (TKT-05)` | At zero hit points the game shows a game over screen, and any key goes back to the title. Tests: the transition and what it draws. | |
-| 28 | `feat(settings): read the game's settings from a TOML file (TKT-05)` | The level size, rooms, items, monsters (including their hit points and damage), the minimum and maximum number of floors, view size and number of log lines come from a TOML file read with `tomllib`, with today's values as the defaults. The format and the file's location are signed off at this commit. Tests: the defaults, overriding a setting, and rejecting bad values. | |
-| 29 | `feat(settings): show which settings a seed was played with (TKT-05)` | A short fingerprint of the settings beside the seed, on screen and in the goodbye line, so a replay can tell it has the same settings. Tests: the same settings give the same fingerprint, and any change gives a different one. | |
+| 27 | `feat(states): show a game over screen at zero hit points (TKT-05)` | At zero hit points the game shows a game over screen, and any key goes back to the title. Tests: the transition and what it draws. | ✅ |
+| 28 | `refactor(settings): gather the settings into one object (TKT-05)` | A frozen `Settings` holding everything a settings file will be able to change, with today's values as its defaults: the level size, rooms, items, monsters (with their hit points and damage), the fewest and most floors, the view size and the number of log lines. It's passed through generation, the game, rendering and the screens instead of each reading its own constants. No change in behaviour; the person split this out of reading TOML so each commit can be reviewed on its own. Tests: the defaults match today's values, and a game made with other settings uses them. | |
+| 29 | `feat(settings): read the game's settings from a TOML file (TKT-05)` | `settings.toml` in the folder the game runs from, or the file `--settings` names, read with `tomllib`. The person chose `[dungeon]`, `[level]` and `[screen]` tables and a `[[items]]` or `[[monsters]]` block for each kind; a file sets only the keys it wants changed, and giving any `[[items]]` or `[[monsters]]` replaces that list. A shipped `settings.toml` writes out every default. A mistake, such as an unknown key, a wrong type or more min floors than max, gives a warning and the default for that value, which the person chose over refusing to start. How warnings reach the player, since the title screen clears the terminal, is signed off at this commit. Tests: the defaults, overriding a setting, the shipped file matching the defaults, and each kind of mistake falling back with a warning. | |
+| 30 | `feat(settings): show which settings a seed was played with (TKT-05)` | A short fingerprint of the settings beside the seed, on screen and in the goodbye line, so a replay can tell it has the same settings. Tests: the same settings give the same fingerprint, and any change gives a different one. | |
 
 ## Post-commit testing
 
@@ -85,7 +86,7 @@ Rows 15 to 29 are stretch goals, added once every acceptance criterion was met.
 
 ### Stretch goals
 
-Checks 8 to 18 test the stretch goals, once rows 15 to 29 have landed.
+Checks 8 to 18 test the stretch goals, once rows 15 to 30 have landed.
 
 | # | Check | How | Status |
 | --- | --- | --- | --- |
@@ -98,7 +99,7 @@ Checks 8 to 18 test the stretch goals, once rows 15 to 29 have landed.
 | 14 | Monsters can be fought | Walking into a monster hits it, and enough hits kill it. | |
 | 15 | Monsters hurt back, and the game can be lost | Standing next to a monster costs hit points, shown on the status line. At zero, the game over screen shows, then the title. | |
 | 16 | Potions heal | Pick up a potion, take some hits, then press `p`: hit points go up by 5, never past the most, and the potion leaves the inventory. With no potions, `p` says so. | |
-| 17 | Settings change the game | Changing a setting in the TOML file, such as fewer floors or a smaller level, changes the game, and the fingerprint beside the seed changes with it. | |
+| 17 | Settings change the game | Changing a setting in the TOML file, such as fewer floors or a smaller level, changes the game, and the fingerprint beside the seed changes with it. A mistake in the file warns and falls back to the default for that value. | |
 | 18 | The original checks still hold | Re-run checks 1 to 3 on the finished stretch goals, with input that starts a game from the title screen first. | |
 
 ## Acceptance criteria
@@ -129,4 +130,4 @@ The person added these after play-testing:
 - Saving and loading from a menu. Levels regenerate from the seed, so a save only needs the seed, the depth, the player's position and inventory, the explored tiles, and which items have been picked up on the current level.
 - A log that keeps past messages instead of replacing them, with a key to clear it. The person added this while trying row 15.
 
-The person chose every stretch goal except saving and loading, planned as rows 15 to 29, with checks 8 to 18.
+The person chose every stretch goal except saving and loading, planned as rows 15 to 30, with checks 8 to 18.

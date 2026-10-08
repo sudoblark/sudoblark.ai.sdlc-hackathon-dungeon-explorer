@@ -3,8 +3,6 @@
 from dungeon_explorer.game import Game
 from dungeon_explorer.level import Monster, Point, Tile
 
-VIEW_WIDTH = 31
-VIEW_HEIGHT = 15
 # Each side of the square of tiles one mini-map character stands for.
 MINI_MAP_SCALE = 2
 PLAYER = "@"
@@ -13,14 +11,17 @@ UNSEEN = " "
 
 
 def draw_view(
-    game: Game, width: int = VIEW_WIDTH, height: int = VIEW_HEIGHT
+    game: Game, width: int | None = None, height: int | None = None
 ) -> list[str]:
     """The tiles around the player at full scale, with the player in the middle.
 
     Only explored tiles, and monsters in sight, are drawn. Anything else, or
     anything past the edge of the level, is blank. Every line is exactly
-    `width` characters long.
+    `width` characters long. The size comes from the game's settings unless
+    it's given.
     """
+    width = width or game.settings.view_width
+    height = height or game.settings.view_height
     player_x, player_y = game.player.position
     left = player_x - width // 2
     top = player_y - height // 2

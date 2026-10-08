@@ -5,6 +5,7 @@ from typing import Self
 
 from dungeon_explorer.generate import floor_count, generate_level
 from dungeon_explorer.level import Direction, Item, Level, Monster, Point, Tile
+from dungeon_explorer.settings import DEFAULT_SETTINGS, Settings
 
 # What the player hits with when they carry no weapon.
 FIST_DAMAGE = 1
@@ -64,6 +65,7 @@ class Game:
     log: list[Message] = field(default_factory=list)
     finished: bool = False
     killed_by: str | None = None
+    settings: Settings = DEFAULT_SETTINGS
 
     def __post_init__(self) -> None:
         self._explore()
@@ -71,13 +73,14 @@ class Game:
     @property
     def floors(self) -> int:
         """How many floors this game's dungeon has, set by its seed."""
-        return floor_count(self.seed)
+        return floor_count(self.seed, self.settings)
 
     @classmethod
-    def new(cls, seed: int) -> Self:
+    def new(cls, seed: int, settings: Settings = DEFAULT_SETTINGS) -> Self:
         """Start a game at the top of the dungeon for `seed`."""
-        level = generate_level(seed, depth=1)
-        return cls(seed=seed, level=level, player=Player(level.player_start))
+        level = generate_level(seed, 1, settings)
+        player = Player(level.player_start)
+        return cls(seed=seed, level=level, player=player, settings=settings)
 
     def move(self, direction: Direction) -> None:
         """Step the player one tile, or attack the monster standing there.
@@ -114,7 +117,7 @@ class Game:
             self.say("You go down the last stairs and out of the dungeon.")
             return
         self.depth += 1
-        self.level = generate_level(self.seed, self.depth)
+        self.level = generate_level(self.seed, self.depth, self.settings)
         self.player.position = self.level.player_start
         self.explored = set()
         self._explore()

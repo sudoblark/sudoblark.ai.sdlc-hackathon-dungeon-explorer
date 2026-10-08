@@ -5,63 +5,40 @@ import random
 from dataclasses import replace
 
 from dungeon_explorer.level import Item, Level, Monster, Point, Room, Tile
+from dungeon_explorer.settings import DEFAULT_SETTINGS, Settings
 
-# Each seed's dungeon has between these many floors.
-MIN_FLOORS = 3
-MAX_FLOORS = 7
-LEVEL_WIDTH = 64
-LEVEL_HEIGHT = 32
-MAX_ROOMS = 9
+# How generation works rather than what it makes, so these aren't settings.
 ROOM_ATTEMPTS = 200
-ROOM_WIDTHS = (4, 12)
-ROOM_HEIGHTS = (3, 7)
 # The fewest wall tiles between two rooms, so each room has its own walls.
 ROOM_GAP = 2
 # A bend in a corridor costs as much as this many steps, so corridors take a
 # short detour rather than zigzag.
 BEND_COST = 4
-# Each kind of item, and the first floor it can turn up on. Stronger
-# weapons only turn up deeper.
-ITEMS = (
-    (Item("potion", "!", healing=5), 1),
-    (Item("gold", "$"), 1),
-    (Item("scroll", "?"), 1),
-    (Item("dagger", ")", damage=2), 1),
-    (Item("sword", "/", damage=3), 2),
-    (Item("axe", "\\", damage=4), 4),
-)
-ITEMS_PER_LEVEL = (3, 6)
-# Each kind of monster, and the first floor it can turn up on.
-MONSTERS = (
-    (Monster("rat", "r", hit_points=2, damage=1), 1),
-    (Monster("goblin", "g", hit_points=4, damage=2), 2),
-    (Monster("orc", "o", hit_points=7, damage=3), 4),
-)
-# The fewest and most monsters on the first floor. Each floor deeper adds
-# one to both.
-MONSTERS_PER_FLOOR = (1, 3)
 
 # One tile north, east, south and west.
 STEPS: tuple[Point, ...] = ((0, -1), (1, 0), (0, 1), (-1, 0))
 
 
-def floor_count(seed: int) -> int:
+def floor_count(seed: int, settings: Settings = DEFAULT_SETTINGS) -> int:
     """How many floors the dungeon for `seed` has. The same seed always gives
     the same number."""
     # Its own seed string, so the count doesn't depend on any level.
-    return random.Random(f"{seed}:floors").randint(MIN_FLOORS, MAX_FLOORS)
+    rng = random.Random(f"{seed}:floors")
+    return rng.randint(settings.min_floors, settings.max_floors)
 
 
-def generate_level(seed: int, depth: int) -> Level:
+def generate_level(
+    seed: int, depth: int, settings: Settings = DEFAULT_SETTINGS
+) -> Level:
     """Generate level `depth` of the dungeon for `seed`.
 
-    The same seed and depth always give the same level.
+    The same seed, depth and settings always give the same level.
     """
     # random hashes a string seed with SHA-512, so this is the same in every
     # run, unlike hash(), which changes from one process to the next.
     rng = random.Random(f"{seed}:{depth}")
-    rooms = _place_rooms(rng)
-    tiles = [[Tile.WALL] * LEVEL_WIDTH for _ in range(LEVEL_HEIGHT)]
+    rooms = _place_rooms(rng, settings)
+    tiles = [[Tile.WALL] * settings.level_width for _ in range(settings.level_height)]
     for room in rooms:
         for x, y in room.tiles():
             tiles[y][x] = Tile.FLOOR
@@ -71,8 +48,8 @@ def generate_level(seed: int, depth: int) -> Level:
     # Nothing goes on the eight tiles around the stairs, so they stand alone
     # in the view and never share a block on the mini-map.
     taken = {player_start, *_around(stairs_down)}
-    items = _place_items(rng, rooms, depth, taken)
-    monsters = _place_monsters(rng, rooms, depth, taken={stairs_down, *items})
+    items = _place_items(rng, rooms, depth, taken, settings)
+    monsters = _place_monsters(rng, rooms, depth, {stairs_down, *items}, settings)
     return Level(
         tiles=tiles,
         rooms=rooms,
@@ -83,19 +60,19 @@ def generate_level(seed: int, depth: int) -> Level:
     )
 
 
-def _place_rooms(rng: random.Random) -> list[Room]:
+def _place_rooms(rng: random.Random, settings: Settings) -> list[Room]:
     """Try rooms of random sizes and places, keeping each one with space around it."""
     rooms: list[Room] = []
     for _ in range(ROOM_ATTEMPTS):
-        width = rng.randint(*ROOM_WIDTHS)
-        height = rng.randint(*ROOM_HEIGHTS)
+        width = rng.randint(*settings.room_widths)
+        height = rng.randint(*settings.room_heights)
         # Leave a wall between every room and the edge of the level.
-        x = rng.randint(1, LEVEL_WIDTH - width - 1)
-        y = rng.randint(1, LEVEL_HEIGHT - height - 1)
+        x = rng.randint(1, settings.level_width - width - 1)
+        y = rng.randint(1, settings.level_height - height - 1)
         room = Room(x, y, width, height)
         if not any(room.is_near(other, ROOM_GAP) for other in rooms):
             rooms.append(room)
-            if len(rooms) == MAX_ROOMS:
+            if len(rooms) == settings.max_rooms:
                 break
     return rooms
 
@@ -107,25 +84,33 @@ def _place_stairs_down(rng: random.Random, rooms: list[Room]) -> Point:
 
 
 def _place_items(
-    rng: random.Random, rooms: list[Room], depth: int, taken: set[Point]
+    rng: random.Random,
+    rooms: list[Room],
+    depth: int,
+    taken: set[Point],
+    settings: Settings,
 ) -> dict[Point, Item]:
     """Scatter a few random items on room floors, one to a tile, off `taken`
     tiles, from the kinds that can turn up this deep."""
     floor = [tile for room in rooms for tile in room.tiles() if tile not in taken]
-    count = rng.randint(*ITEMS_PER_LEVEL)
-    kinds = [kind for kind, first_floor in ITEMS if first_floor <= depth]
+    count = rng.randint(*settings.items_per_level)
+    kinds = [kind for kind, first_floor in settings.items if first_floor <= depth]
     return {tile: rng.choice(kinds) for tile in rng.sample(floor, count)}
 
 
 def _place_monsters(
-    rng: random.Random, rooms: list[Room], depth: int, taken: set[Point]
+    rng: random.Random,
+    rooms: list[Room],
+    depth: int,
+    taken: set[Point],
+    settings: Settings,
 ) -> list[Monster]:
     """Place monsters on the floors of every room but the first, where the
     player starts. Deeper floors get more of them, and tougher kinds."""
     floor = [tile for room in rooms[1:] for tile in room.tiles() if tile not in taken]
-    fewest, most = (count + depth - 1 for count in MONSTERS_PER_FLOOR)
+    fewest, most = (count + depth - 1 for count in settings.monsters_per_floor)
     count = min(rng.randint(fewest, most), len(floor))
-    kinds = [kind for kind, first_floor in MONSTERS if first_floor <= depth]
+    kinds = [kind for kind, first_floor in settings.monsters if first_floor <= depth]
     return [
         replace(rng.choice(kinds), position=tile) for tile in rng.sample(floor, count)
     ]

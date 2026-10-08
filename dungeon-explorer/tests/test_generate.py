@@ -3,18 +3,9 @@ from itertools import combinations, pairwise
 
 import pytest
 
-from dungeon_explorer.generate import (
-    ITEMS,
-    ITEMS_PER_LEVEL,
-    MAX_FLOORS,
-    MIN_FLOORS,
-    MONSTERS,
-    MONSTERS_PER_FLOOR,
-    _join_rooms,
-    floor_count,
-    generate_level,
-)
+from dungeon_explorer.generate import _join_rooms, floor_count, generate_level
 from dungeon_explorer.level import Item, Level, Monster, Point, Room, Tile
+from dungeon_explorer.settings import DEFAULT_SETTINGS, Settings
 
 SEEDS = range(20)
 # Fewer seeds for tests that look at several floors of each.
@@ -190,10 +181,10 @@ def test_the_stairs_down_are_on_the_floor_of_another_room(seed):
 def test_a_few_items_lie_on_room_floors(seed):
     level = _level(seed)
 
-    low, high = ITEMS_PER_LEVEL
+    low, high = DEFAULT_SETTINGS.items_per_level
     assert low <= len(level.items) <= high
     assert set(level.items) <= _room_floor(level)
-    kinds = [kind for kind, _ in ITEMS]
+    kinds = [kind for kind, _ in DEFAULT_SETTINGS.items]
     assert all(item in kinds for item in level.items.values())
 
 
@@ -313,7 +304,9 @@ def test_different_depths_give_different_levels():
 def test_each_dungeon_has_between_the_fewest_and_most_floors():
     counts = {floor_count(seed) for seed in range(200)}
 
-    assert counts <= set(range(MIN_FLOORS, MAX_FLOORS + 1))
+    assert counts <= set(
+        range(DEFAULT_SETTINGS.min_floors, DEFAULT_SETTINGS.max_floors + 1)
+    )
     # Seeds vary the count, rather than all getting the same number.
     assert len(counts) > 1
 
@@ -345,7 +338,7 @@ def test_monsters_keep_off_the_stairs_and_the_items(seed):
 
 @pytest.mark.parametrize("depth", [1, 2, 3, 4, 5])
 def test_each_floor_deeper_has_more_monsters(depth):
-    fewest, most = (count + depth - 1 for count in MONSTERS_PER_FLOOR)
+    fewest, most = (count + depth - 1 for count in DEFAULT_SETTINGS.monsters_per_floor)
 
     for seed in DEPTH_SEEDS:
         assert fewest <= len(_level(seed, depth).monsters) <= most
@@ -353,7 +346,11 @@ def test_each_floor_deeper_has_more_monsters(depth):
 
 @pytest.mark.parametrize("depth", [1, 2, 3, 4, 5])
 def test_tougher_monsters_only_turn_up_deeper(depth):
-    allowed = {kind.name for kind, first_floor in MONSTERS if first_floor <= depth}
+    allowed = {
+        kind.name
+        for kind, first_floor in DEFAULT_SETTINGS.monsters
+        if first_floor <= depth
+    }
 
     found = {m.name for seed in DEPTH_SEEDS for m in _level(seed, depth).monsters}
 
@@ -369,7 +366,7 @@ def test_each_monster_placed_is_its_own_copy():
     first.hit_points = 0
 
     assert second.hit_points == 2
-    assert all(kind.hit_points > 0 for kind, _ in MONSTERS)
+    assert all(kind.hit_points > 0 for kind, _ in DEFAULT_SETTINGS.monsters)
 
 
 def test_the_same_seed_gives_the_same_monsters_in_every_run():
@@ -382,7 +379,11 @@ def test_the_same_seed_gives_the_same_monsters_in_every_run():
 
 @pytest.mark.parametrize("depth", [1, 2, 3, 4, 5])
 def test_stronger_weapons_only_turn_up_deeper(depth):
-    allowed = {kind.name for kind, first_floor in ITEMS if first_floor <= depth}
+    allowed = {
+        kind.name
+        for kind, first_floor in DEFAULT_SETTINGS.items
+        if first_floor <= depth
+    }
 
     found = {i.name for seed in DEPTH_SEEDS for i in _level(seed, depth).items.values()}
 
@@ -390,22 +391,52 @@ def test_stronger_weapons_only_turn_up_deeper(depth):
 
 
 def test_every_kind_of_item_turns_up_somewhere_deep_enough():
-    deepest = max(first_floor for _, first_floor in ITEMS)
+    deepest = max(first_floor for _, first_floor in DEFAULT_SETTINGS.items)
 
     found = {
         item.name for seed in range(30) for item in _level(seed, deepest).items.values()
     }
 
-    assert found == {kind.name for kind, _ in ITEMS}
+    assert found == {kind.name for kind, _ in DEFAULT_SETTINGS.items}
 
 
 def test_only_weapons_do_damage():
-    weapons = {kind.name: kind.damage for kind, _ in ITEMS if kind.damage}
+    weapons = {
+        kind.name: kind.damage for kind, _ in DEFAULT_SETTINGS.items if kind.damage
+    }
 
     assert weapons == {"dagger": 2, "sword": 3, "axe": 4}
 
 
 def test_only_potions_heal():
-    healers = {kind.name: kind.healing for kind, _ in ITEMS if kind.healing}
+    healers = {
+        kind.name: kind.healing for kind, _ in DEFAULT_SETTINGS.items if kind.healing
+    }
 
     assert healers == {"potion": 5}
+
+
+def test_a_level_is_the_size_its_settings_say():
+    small = Settings(level_width=40, level_height=20)
+
+    level = generate_level(42, depth=1, settings=small)
+
+    assert (level.width, level.height) == (40, 20)
+    assert all(room.right <= 39 and room.bottom <= 19 for room in level.rooms)
+
+
+def test_the_floor_count_comes_from_the_settings():
+    exactly_two = Settings(min_floors=2, max_floors=2)
+
+    assert {floor_count(seed, exactly_two) for seed in range(20)} == {2}
+
+
+def test_items_and_monsters_come_from_the_settings():
+    gem = Item("gem", "*")
+    bat = Monster("bat", "b", hit_points=1, damage=1)
+    only = Settings(items=((gem, 1),), monsters=((bat, 1),))
+
+    level = generate_level(42, depth=1, settings=only)
+
+    assert set(level.items.values()) == {gem}
+    assert {monster.name for monster in level.monsters} == {"bat"}
