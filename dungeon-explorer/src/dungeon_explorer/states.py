@@ -17,7 +17,11 @@ from dungeon_explorer.render import PLAYER, STAIRS_DOWN, draw_mini_map, draw_vie
 
 BACK = "Press any key to go back."
 TITLE = "DUNGEON EXPLORER"
-MENU = "i inventory   ? help   q quit"
+MENU = "i inventory  l log  c clear  ? help  q quit"
+# How many of the newest messages show under the map.
+LOG_LINES = 3
+# How many messages the log screen shows at once.
+LOG_PAGE = 20
 # Every symbol the playing screen can show, and what it means.
 LEGEND = [
     (PLAYER, "you"),
@@ -57,7 +61,7 @@ class _InGameState(State):
 
 class PlayingState(_InGameState):
     """The dungeon: a header, the view and mini-map with a legend beside
-    them, and the last message underneath."""
+    them, and the newest messages underneath."""
 
     def draw(self) -> list[str]:
         game = self.game
@@ -74,11 +78,14 @@ class PlayingState(_InGameState):
             f"{panel}  {key[row]}" if row < len(key) and key[row] else panel
             for row, panel in enumerate(panels)
         ]
+        # Blank lines above the newest messages keep the screen the same height.
+        newest = [str(message) for message in game.log[-LOG_LINES:]]
         return [
             TITLE + MENU.rjust(width - len(TITLE)),
             f"Level {game.depth}   Seed {game.seed}",
             *beside,
-            game.message,
+            *[""] * (LOG_LINES - len(newest)),
+            *newest,
         ]
 
     def handle(self, text: str) -> State | None:
@@ -89,11 +96,17 @@ class PlayingState(_InGameState):
             return InventoryState(self.game)
         if key == "?":
             return HelpState(self.game)
+        if key == "l":
+            return LogState(self.game)
+        if key == "c":
+            # Clearing the log isn't a turn, so it's a screen key, not a command.
+            self.game.clear_log()
+            return self
         command = parse_command(key)
         if command is not None:
             command.execute(self.game)
         elif key:
-            self.game.message = f"Unknown command {text.strip()!r}. Press ? for help."
+            self.game.say(f"Unknown command {text.strip()!r}. Press ? for help.")
         return self
 
 
@@ -125,6 +138,8 @@ class HelpState(_InGameState):
             "  w a s d   move north, west, south or east",
             "  >         go down the stairs, when you're on them",
             "  i         look at your inventory",
+            "  l         read every message so far",
+            "  c         clear the messages",
             "  ?         show this help",
             "  q         quit",
             "",
@@ -133,6 +148,40 @@ class HelpState(_InGameState):
         ]
 
     def handle(self, text: str) -> State | None:
+        return PlayingState(self.game)
+
+
+@dataclass
+class LogState(_InGameState):
+    """Every message of the game, a page at a time, scrolled with w and s.
+
+    `scroll` is how many messages back from the newest the page ends.
+    """
+
+    scroll: int = 0
+
+    def draw(self) -> list[str]:
+        log = self.game.log
+        if not log:
+            return ["Message log", "", "  No messages yet.", "", BACK]
+        end = len(log) - self.scroll
+        start = max(0, end - LOG_PAGE)
+        return [
+            f"Message log   {start + 1}-{end} of {len(log)}",
+            "",
+            *(f"  {message}" for message in log[start:end]),
+            "",
+            "w older   s newer   any other key to go back",
+        ]
+
+    def handle(self, text: str) -> State | None:
+        key = text.strip().lower()
+        if key == "w":
+            self.scroll = min(self.scroll + 1, max(0, len(self.game.log) - LOG_PAGE))
+            return self
+        if key == "s":
+            self.scroll = max(self.scroll - 1, 0)
+            return self
         return PlayingState(self.game)
 
 

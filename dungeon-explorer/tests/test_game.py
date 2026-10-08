@@ -1,7 +1,7 @@
 import pytest
 from helpers import game_on, level_from
 
-from dungeon_explorer.game import Game
+from dungeon_explorer.game import Game, Message
 from dungeon_explorer.generate import generate_level
 from dungeon_explorer.level import Direction, Item, Point, Room
 
@@ -26,7 +26,7 @@ def test_a_new_game_starts_at_the_start_of_level_one():
     assert game.level == generate_level(42, depth=1)
     assert game.player.position == game.level.player_start
     assert game.player.inventory == []
-    assert game.message == ""
+    assert game.log == []
 
 
 @pytest.mark.parametrize(
@@ -61,7 +61,7 @@ def test_walls_block_the_player(start, direction):
     game.move(direction)
 
     assert game.player.position == start
-    assert game.message == "A wall is in the way."
+    assert str(game.log[-1]) == "A wall is in the way."
 
 
 @pytest.mark.parametrize(
@@ -85,17 +85,17 @@ def test_the_edge_of_the_level_blocks_the_player(start, direction):
     game.move(direction)
 
     assert game.player.position == start
-    assert game.message == "A wall is in the way."
+    assert str(game.log[-1]) == "A wall is in the way."
 
 
-def test_a_step_clears_the_last_message():
+def test_a_plain_step_adds_nothing_to_the_log():
     game = game_on(ROOM, position=(1, 1))
     game.move(Direction.NORTH)
 
     game.move(Direction.SOUTH)
 
     assert game.player.position == (1, 2)
-    assert game.message == ""
+    assert game.log == [Message("A wall is in the way.")]
 
 
 def test_stepping_onto_an_item_picks_it_up():
@@ -106,7 +106,7 @@ def test_stepping_onto_an_item_picks_it_up():
 
     assert game.player.inventory == [POTION]
     assert (2, 1) not in game.level.items
-    assert game.message == "You pick up the potion."
+    assert str(game.log[-1]) == "You pick up the potion."
 
 
 def test_the_inventory_lists_items_in_the_order_they_were_picked_up():
@@ -129,7 +129,7 @@ def test_stepping_back_onto_an_emptied_tile_picks_up_nothing_more():
     game.move(Direction.EAST)
 
     assert game.player.inventory == [POTION]
-    assert game.message == ""
+    assert game.log == [Message("You pick up the potion.")]
 
 
 def _on_the_stairs(seed: int) -> Game:
@@ -147,7 +147,7 @@ def test_going_down_the_stairs_starts_the_next_level():
     assert game.depth == 2
     assert game.level == generate_level(42, depth=2)
     assert game.player.position == game.level.player_start
-    assert game.message == "You go down the stairs to level 2."
+    assert str(game.log[-1]) == "You go down the stairs to level 2."
 
 
 def test_each_flight_of_stairs_goes_one_level_deeper():
@@ -198,7 +198,7 @@ def test_going_down_is_refused_away_from_the_stairs():
     assert game.depth == 1
     assert game.level is level
     assert game.player.position == start
-    assert game.message == "There are no stairs down here."
+    assert str(game.log[-1]) == "There are no stairs down here."
 
 
 # Two rooms joined by a corridor through doors at (4, 2) and (6, 2).
@@ -272,3 +272,68 @@ def test_exploring_stops_at_the_edge_of_the_level():
     game = game_on(open_ground, position=(0, 0))
 
     assert game.explored == {(0, 0), (1, 0), (0, 1), (1, 1)}
+
+
+def test_messages_pile_up_in_the_log_oldest_first():
+    level = level_from("#####", "#...#", "#####", items={(2, 1): POTION})
+    game = game_on(level, position=(1, 1))
+
+    game.move(Direction.NORTH)
+    game.move(Direction.EAST)
+    game.descend()
+
+    assert [str(message) for message in game.log] == [
+        "A wall is in the way.",
+        "You pick up the potion.",
+        "There are no stairs down here.",
+    ]
+
+
+def test_the_same_message_in_a_row_is_counted_not_repeated():
+    game = game_on(ROOM, position=(1, 1))
+
+    for _ in range(3):
+        game.move(Direction.NORTH)
+    game.move(Direction.WEST)
+
+    assert game.log == [Message("A wall is in the way.", count=4)]
+    assert str(game.log[-1]) == "A wall is in the way. (x4)"
+
+
+def test_a_different_message_starts_a_new_count():
+    game = game_on(ROOM, position=(1, 1))
+
+    game.move(Direction.NORTH)
+    game.descend()
+    game.move(Direction.NORTH)
+
+    assert [str(message) for message in game.log] == [
+        "A wall is in the way.",
+        "There are no stairs down here.",
+        "A wall is in the way.",
+    ]
+
+
+def test_clearing_the_log_empties_it():
+    game = game_on(ROOM, position=(1, 1))
+    game.move(Direction.NORTH)
+
+    game.clear_log()
+
+    assert game.log == []
+
+
+def test_the_log_carries_on_down_the_stairs():
+    game = Game.new(seed=42)
+    game.move(Direction.NORTH)
+    game.move(Direction.NORTH)
+    game.move(Direction.NORTH)
+    game.move(Direction.NORTH)
+    game.player.position = game.level.stairs_down
+
+    game.descend()
+
+    assert [str(message) for message in game.log] == [
+        "A wall is in the way.",
+        "You go down the stairs to level 2.",
+    ]

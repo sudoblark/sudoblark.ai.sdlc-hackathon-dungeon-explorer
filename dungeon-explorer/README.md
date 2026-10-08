@@ -25,10 +25,12 @@ Press a key; there's no need to press Enter:
 | `w` `a` `s` `d` | Move one step north, west, south or east |
 | `>` | Go down the stairs, when you're standing on them |
 | `i` | Look at your inventory |
+| `l` | Read every message so far, scrolling with `w` and `s` |
+| `c` | Clear the messages |
 | `?` | Show the help |
 | `q` | Quit |
 
-The left panel shows the area around you, and the right panel is a mini-map of the whole level at half size, with a key to the symbols beside it. Both show only what you've explored: entering a room reveals all of it, and corridors are mapped as you walk them. Walk onto an item to pick it up.
+The left panel shows the area around you, and the right panel is a mini-map of the whole level at half size, with a key to the symbols beside it. Both show only what you've explored: entering a room reveals all of it, and corridors are mapped as you walk them. Walk onto an item to pick it up. The newest three messages show under the map, and a message that repeats is counted rather than repeated.
 
 | Symbol | What it is |
 | --- | --- |

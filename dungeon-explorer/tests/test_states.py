@@ -7,7 +7,13 @@ from dungeon_explorer.game import Game
 from dungeon_explorer.generate import ITEMS
 from dungeon_explorer.level import Item, Tile
 from dungeon_explorer.render import PLAYER, STAIRS_DOWN, draw_mini_map, draw_view
-from dungeon_explorer.states import LEGEND, HelpState, InventoryState, PlayingState
+from dungeon_explorer.states import (
+    LEGEND,
+    HelpState,
+    InventoryState,
+    LogState,
+    PlayingState,
+)
 
 POTION = Item("potion", "!")
 GOLD = Item("gold", "$")
@@ -21,14 +27,17 @@ ROOM = level_from(
 )
 
 
-def test_playing_draws_a_header_the_panels_with_a_legend_and_the_message():
+def test_playing_draws_a_header_the_panels_with_a_legend_and_the_log():
     game = Game.new(seed=42)
-    game.message = "A wall is in the way."
+    game.say("You pick up the potion.")
+    game.say("A wall is in the way.")
+    game.say("A wall is in the way.")
 
     lines = PlayingState(game).draw()
 
     view, mini_map = draw_view(game), draw_mini_map(game)
-    assert lines[0] == "DUNGEON EXPLORER" + " " * 23 + "i inventory   ? help   q quit"
+    menu = "i inventory  l log  c clear  ? help  q quit"
+    assert lines[0] == "DUNGEON EXPLORER" + " " * 9 + menu
     assert lines[1] == "Level 1   Seed 42"
     assert lines[2] == "+- View " + "-" * 24 + "+ +- Map " + "-" * 26 + "+"
     key = ["Key", "@ you", "# wall", ". floor", "> stairs"]
@@ -40,9 +49,39 @@ def test_playing_draws_a_header_the_panels_with_a_legend_and_the_message():
         beside = f"  {key[row]}" if row < len(key) else ""
         assert lines[3 + row] == panels + beside
     assert lines[19] == "+" + "-" * 31 + "+ +" + "-" * 32 + "+"
-    assert lines[20] == "A wall is in the way."
-    assert len(lines) == 21
+    # Three lines for the log, with a blank above the two messages so far.
+    assert lines[20:] == ["", "You pick up the potion.", "A wall is in the way. (x2)"]
+    assert len(lines) == 23
     assert max(len(line) for line in lines) <= 80
+
+
+def test_playing_shows_only_the_newest_three_messages():
+    game = game_on(ROOM, position=(2, 2))
+    for number in range(5):
+        game.say(f"Message {number}.")
+
+    lines = PlayingState(game).draw()
+
+    assert lines[-3:] == ["Message 2.", "Message 3.", "Message 4."]
+
+
+def test_playing_clears_the_log_on_c_without_taking_a_turn():
+    game = game_on(ROOM, position=(2, 2))
+    game.say("A wall is in the way.")
+    playing = PlayingState(game)
+
+    assert playing.handle("c") is playing
+    assert game.log == []
+    assert game.player.position == (2, 2)
+
+
+def test_playing_opens_the_log_on_l():
+    game = game_on(ROOM, position=(2, 2))
+
+    log = PlayingState(game).handle("l")
+
+    assert isinstance(log, LogState)
+    assert log.game is game
 
 
 def test_the_legend_explains_every_symbol_the_playing_screen_can_show():
@@ -75,7 +114,7 @@ def test_playing_runs_commands_and_stays_on_the_playing_screen():
     assert playing.handle("w") is playing
     assert game.player.position == (2, 1)
     assert playing.handle(">") is playing
-    assert game.message == "There are no stairs down here."
+    assert str(game.log[-1]) == "There are no stairs down here."
 
 
 def test_playing_says_when_it_doesnt_know_a_command():
@@ -83,13 +122,13 @@ def test_playing_says_when_it_doesnt_know_a_command():
     playing = PlayingState(game)
 
     assert playing.handle(" jump ") is playing
-    assert game.message == "Unknown command 'jump'. Press ? for help."
+    assert str(game.log[-1]) == "Unknown command 'jump'. Press ? for help."
     assert game.player.position == (2, 2)
 
 
 def test_playing_ignores_an_empty_line():
     game = game_on(ROOM, position=(2, 2))
-    game.message = "You pick up the potion."
+    game.say("You pick up the potion.")
     before = copy.deepcopy(game)
     playing = PlayingState(game)
 
@@ -127,7 +166,7 @@ def test_the_help_lists_every_key():
     lines = HelpState(game_on(ROOM, position=(2, 2))).draw()
 
     assert lines[0] == "How to play"
-    for key in ("w a s d", ">", "i", "?", "q"):
+    for key in ("w a s d", ">", "i", "l", "c", "?", "q"):
         assert any(line.startswith(f"  {key} ") for line in lines), key
 
 
@@ -157,3 +196,81 @@ def test_the_inventory_and_help_open_on_the_same_game():
 
     assert PlayingState(game).handle("i").game is game
     assert PlayingState(game).handle("?").game is game
+
+
+def _logged(count: int) -> LogState:
+    """A log screen for a game that has said `count` numbered messages."""
+    game = game_on(ROOM, position=(2, 2))
+    for number in range(1, count + 1):
+        game.say(f"Message {number}.")
+    return LogState(game)
+
+
+def test_the_log_screen_shows_every_message_when_they_fit():
+    assert _logged(2).draw() == [
+        "Message log   1-2 of 2",
+        "",
+        "  Message 1.",
+        "  Message 2.",
+        "",
+        "w older   s newer   any other key to go back",
+    ]
+
+
+def test_the_log_screen_opens_on_the_newest_page():
+    lines = _logged(25).draw()
+
+    assert lines[0] == "Message log   6-25 of 25"
+    assert lines[2] == "  Message 6."
+    assert lines[21] == "  Message 25."
+
+
+def test_the_log_screen_scrolls_older_with_w_and_newer_with_s():
+    log = _logged(25)
+
+    assert log.handle("w") is log
+    assert log.handle("w") is log
+    assert log.draw()[0] == "Message log   4-23 of 25"
+    assert log.handle("s") is log
+    assert log.draw()[0] == "Message log   5-24 of 25"
+
+
+def test_the_log_screen_stops_scrolling_at_either_end():
+    log = _logged(25)
+
+    for _ in range(10):
+        log.handle("w")
+    assert log.draw()[0] == "Message log   1-20 of 25"
+    for _ in range(10):
+        log.handle("s")
+    assert log.draw()[0] == "Message log   6-25 of 25"
+
+
+def test_a_short_log_doesnt_scroll():
+    log = _logged(2)
+
+    log.handle("w")
+
+    assert log.draw()[0] == "Message log   1-2 of 2"
+
+
+def test_the_log_screen_says_when_there_are_no_messages():
+    assert _logged(0).draw() == [
+        "Message log",
+        "",
+        "  No messages yet.",
+        "",
+        "Press any key to go back.",
+    ]
+
+
+@pytest.mark.parametrize("text", ["", "q", "d", "l"])
+def test_any_other_key_on_the_log_screen_goes_back_to_playing(text):
+    log = _logged(3)
+    before = copy.deepcopy(log.game)
+
+    back = log.handle(text)
+
+    assert isinstance(back, PlayingState)
+    assert back.game is log.game
+    assert log.game == before

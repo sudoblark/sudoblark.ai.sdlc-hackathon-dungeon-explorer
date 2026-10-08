@@ -19,11 +19,22 @@ class Player:
 
 
 @dataclass
+class Message:
+    """Something that happened, and how many times in a row it happened."""
+
+    text: str
+    count: int = 1
+
+    def __str__(self) -> str:
+        return self.text if self.count == 1 else f"{self.text} (x{self.count})"
+
+
+@dataclass
 class Game:
     """Everything about a game in play.
 
-    `explored` holds every tile of this level the player has seen, and
-    `message` says what happened on the last turn, for showing to the player.
+    `explored` holds every tile of this level the player has seen, and `log`
+    holds every message of the game, oldest first, for showing to the player.
     """
 
     seed: int
@@ -31,7 +42,7 @@ class Game:
     player: Player
     depth: int = 1
     explored: set[Point] = field(default_factory=set)
-    message: str = ""
+    log: list[Message] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         self._explore()
@@ -49,10 +60,9 @@ class Game:
         """
         target = direction.step_from(self.player.position)
         if not self._is_floor(target):
-            self.message = "A wall is in the way."
+            self.say("A wall is in the way.")
             return
         self.player.position = target
-        self.message = ""
         self._pick_up()
         self._explore()
 
@@ -63,14 +73,24 @@ class Game:
         happened on the levels above. The player keeps their inventory.
         """
         if self.player.position != self.level.stairs_down:
-            self.message = "There are no stairs down here."
+            self.say("There are no stairs down here.")
             return
         self.depth += 1
         self.level = generate_level(self.seed, self.depth)
         self.player.position = self.level.player_start
         self.explored = set()
         self._explore()
-        self.message = f"You go down the stairs to level {self.depth}."
+        self.say(f"You go down the stairs to level {self.depth}.")
+
+    def say(self, text: str) -> None:
+        """Add `text` to the log, counting it again if it's the same as the last."""
+        if self.log and self.log[-1].text == text:
+            self.log[-1].count += 1
+        else:
+            self.log.append(Message(text))
+
+    def clear_log(self) -> None:
+        self.log.clear()
 
     def _pick_up(self) -> None:
         """Move any item under the player off the level and into their inventory."""
@@ -78,7 +98,7 @@ class Game:
         if item is None:
             return
         self.player.inventory.append(item)
-        self.message = f"You pick up the {item.name}."
+        self.say(f"You pick up the {item.name}.")
 
     def _explore(self) -> None:
         """Reveal what the player can see from where they stand.
