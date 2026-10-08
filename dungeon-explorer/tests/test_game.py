@@ -1,33 +1,15 @@
 import pytest
+from helpers import game_on, level_from
 
-from dungeon_explorer.game import Game, Player
+from dungeon_explorer.game import Game
 from dungeon_explorer.generate import generate_level
-from dungeon_explorer.level import Direction, Item, Level, Point, Room, Tile
+from dungeon_explorer.level import Direction, Item, Point, Room
 
 POTION = Item("potion", "!")
 GOLD = Item("gold", "$")
 
 
-def _level(
-    *rows: str,
-    rooms: list[Room] | None = None,
-    items: dict[Point, Item] | None = None,
-) -> Level:
-    """A hand-built level from rows of # and ., with only `items` placed on it."""
-    return Level(
-        tiles=[[Tile(glyph) for glyph in row] for row in rows],
-        rooms=list(rooms or []),
-        player_start=(0, 0),
-        stairs_down=(0, 0),
-        items=dict(items or {}),
-    )
-
-
-def _game(level: Level, position: Point) -> Game:
-    return Game(seed=0, level=level, player=Player(position))
-
-
-ROOM = _level(
+ROOM = level_from(
     "#####",
     "#...#",
     "#...#",
@@ -57,7 +39,7 @@ def test_a_new_game_starts_at_the_start_of_level_one():
     ],
 )
 def test_moving_steps_one_tile_in_that_direction(direction, position):
-    game = _game(ROOM, position=(2, 2))
+    game = game_on(ROOM, position=(2, 2))
 
     game.move(direction)
 
@@ -74,7 +56,7 @@ def test_moving_steps_one_tile_in_that_direction(direction, position):
     ],
 )
 def test_walls_block_the_player(start, direction):
-    game = _game(ROOM, position=start)
+    game = game_on(ROOM, position=start)
 
     game.move(direction)
 
@@ -93,12 +75,12 @@ def test_walls_block_the_player(start, direction):
 )
 def test_the_edge_of_the_level_blocks_the_player(start, direction):
     # No border of wall, so only the edge stops the player walking off.
-    open_ground = _level(
+    open_ground = level_from(
         "...",
         "...",
         "...",
     )
-    game = _game(open_ground, position=start)
+    game = game_on(open_ground, position=start)
 
     game.move(direction)
 
@@ -107,7 +89,7 @@ def test_the_edge_of_the_level_blocks_the_player(start, direction):
 
 
 def test_a_step_clears_the_last_message():
-    game = _game(ROOM, position=(1, 1))
+    game = game_on(ROOM, position=(1, 1))
     game.move(Direction.NORTH)
 
     game.move(Direction.SOUTH)
@@ -117,8 +99,8 @@ def test_a_step_clears_the_last_message():
 
 
 def test_stepping_onto_an_item_picks_it_up():
-    level = _level("#####", "#...#", "#####", items={(2, 1): POTION})
-    game = _game(level, position=(1, 1))
+    level = level_from("#####", "#...#", "#####", items={(2, 1): POTION})
+    game = game_on(level, position=(1, 1))
 
     game.move(Direction.EAST)
 
@@ -128,8 +110,8 @@ def test_stepping_onto_an_item_picks_it_up():
 
 
 def test_the_inventory_lists_items_in_the_order_they_were_picked_up():
-    level = _level("#####", "#...#", "#####", items={(2, 1): GOLD, (3, 1): POTION})
-    game = _game(level, position=(1, 1))
+    level = level_from("#####", "#...#", "#####", items={(2, 1): GOLD, (3, 1): POTION})
+    game = game_on(level, position=(1, 1))
 
     game.move(Direction.EAST)
     game.move(Direction.EAST)
@@ -139,8 +121,8 @@ def test_the_inventory_lists_items_in_the_order_they_were_picked_up():
 
 
 def test_stepping_back_onto_an_emptied_tile_picks_up_nothing_more():
-    level = _level("#####", "#...#", "#####", items={(2, 1): POTION})
-    game = _game(level, position=(1, 1))
+    level = level_from("#####", "#...#", "#####", items={(2, 1): POTION})
+    game = game_on(level, position=(1, 1))
     game.move(Direction.EAST)
     game.move(Direction.WEST)
 
@@ -222,7 +204,7 @@ def test_going_down_is_refused_away_from_the_stairs():
 # Two rooms joined by a corridor through doors at (4, 2) and (6, 2).
 WEST_ROOM = Room(x=1, y=1, width=3, height=3)
 EAST_ROOM = Room(x=7, y=1, width=3, height=3)
-TWO_ROOMS = _level(
+TWO_ROOMS = level_from(
     "###########",
     "#...###...#",
     "#.........#",
@@ -237,14 +219,14 @@ def _seen(room: Room) -> set[Point]:
 
 
 def test_the_room_the_player_starts_in_is_explored_walls_and_all():
-    game = _game(TWO_ROOMS, position=(2, 2))
+    game = game_on(TWO_ROOMS, position=(2, 2))
 
     assert _seen(WEST_ROOM) <= game.explored
     assert not set(EAST_ROOM.tiles()) & game.explored
 
 
 def test_walking_a_corridor_reveals_the_tiles_around_each_step():
-    game = _game(TWO_ROOMS, position=(2, 2))
+    game = game_on(TWO_ROOMS, position=(2, 2))
 
     for _ in range(3):
         game.move(Direction.EAST)
@@ -255,7 +237,7 @@ def test_walking_a_corridor_reveals_the_tiles_around_each_step():
 
 
 def test_stepping_into_a_room_reveals_all_of_it():
-    game = _game(TWO_ROOMS, position=(2, 2))
+    game = game_on(TWO_ROOMS, position=(2, 2))
 
     for _ in range(5):
         game.move(Direction.EAST)
@@ -282,11 +264,11 @@ def test_a_new_level_starts_with_only_its_first_room_explored():
 
 
 def test_exploring_stops_at_the_edge_of_the_level():
-    open_ground = _level(
+    open_ground = level_from(
         "...",
         "...",
     )
 
-    game = _game(open_ground, position=(0, 0))
+    game = game_on(open_ground, position=(0, 0))
 
     assert game.explored == {(0, 0), (1, 0), (0, 1), (1, 1)}
