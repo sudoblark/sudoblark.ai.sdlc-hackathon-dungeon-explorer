@@ -26,27 +26,30 @@ RANDOM_SEEDS = 1_000_000
 
 
 def game_loop(
-    game: Game,
+    state: State,
     read_line: Callable[[str], str],
     write: Callable[[str], None],
     clear: bool = False,
 ) -> None:
-    """Play `game` until the player quits or the input runs out.
+    """Show `state`, then each state it leads to, until the player quits or
+    the input runs out. The last state shown says goodbye.
 
     `read_line` and `write` work like input() and print(). main passes in
     read_key or input, and print, so tests can script the player's input and
     collect what's drawn.
     """
-    state: State | None = PlayingState()
-    while state is not None:
-        screen = "\n".join(state.draw(game))
+    while True:
+        screen = "\n".join(state.draw())
         write(CLEAR_SCREEN + screen if clear else screen)
         try:
             text = read_line(PROMPT)
         except EOFError:
             break
-        state = state.handle(game, text)
-    write(f"Goodbye! You reached level {game.depth} of seed {game.seed}.")
+        next_state = state.handle(text)
+        if next_state is None:
+            break
+        state = next_state
+    write(state.goodbye())
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -65,7 +68,7 @@ def main(argv: list[str] | None = None) -> int:
     seed = args.seed if args.seed is not None else random.randrange(RANDOM_SEEDS)
     try:
         read = read_key if sys.stdin.isatty() else input
-        game_loop(Game.new(seed), read, print, clear=sys.stdout.isatty())
+        game_loop(PlayingState(Game.new(seed)), read, print, clear=sys.stdout.isatty())
     except KeyboardInterrupt:
         print()
         return 130

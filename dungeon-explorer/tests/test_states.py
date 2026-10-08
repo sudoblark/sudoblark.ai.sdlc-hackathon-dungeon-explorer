@@ -24,7 +24,7 @@ def test_playing_draws_the_status_framed_view_and_mini_map_then_the_message():
     game = Game.new(seed=42)
     game.message = "A wall is in the way."
 
-    lines = PlayingState().draw(game)
+    lines = PlayingState(game).draw()
 
     view, mini_map = draw_view(game), draw_mini_map(game)
     assert lines[0] == "Level 1   Seed 42   ? for help"
@@ -46,30 +46,30 @@ def test_playing_draws_the_status_framed_view_and_mini_map_then_the_message():
 def test_playing_opens_the_inventory_and_help_screens(text, state):
     game = game_on(ROOM, position=(2, 2))
 
-    assert isinstance(PlayingState().handle(game, text), state)
+    assert isinstance(PlayingState(game).handle(text), state)
 
 
 def test_playing_quits_on_q():
     game = game_on(ROOM, position=(2, 2))
 
-    assert PlayingState().handle(game, "q") is None
+    assert PlayingState(game).handle("q") is None
 
 
 def test_playing_runs_commands_and_stays_on_the_playing_screen():
     game = game_on(ROOM, position=(2, 2))
-    playing = PlayingState()
+    playing = PlayingState(game)
 
-    assert playing.handle(game, "w") is playing
+    assert playing.handle("w") is playing
     assert game.player.position == (2, 1)
-    assert playing.handle(game, ">") is playing
+    assert playing.handle(">") is playing
     assert game.message == "There are no stairs down here."
 
 
 def test_playing_says_when_it_doesnt_know_a_command():
     game = game_on(ROOM, position=(2, 2))
-    playing = PlayingState()
+    playing = PlayingState(game)
 
-    assert playing.handle(game, " jump ") is playing
+    assert playing.handle(" jump ") is playing
     assert game.message == "Unknown command 'jump'. Press ? for help."
     assert game.player.position == (2, 2)
 
@@ -78,9 +78,9 @@ def test_playing_ignores_an_empty_line():
     game = game_on(ROOM, position=(2, 2))
     game.message = "You pick up the potion."
     before = copy.deepcopy(game)
-    playing = PlayingState()
+    playing = PlayingState(game)
 
-    assert playing.handle(game, "") is playing
+    assert playing.handle("") is playing
     assert game == before
 
 
@@ -88,7 +88,7 @@ def test_the_inventory_lists_what_the_player_carries_in_order():
     game = game_on(ROOM, position=(2, 2))
     game.player.inventory = [POTION, GOLD]
 
-    assert InventoryState().draw(game) == [
+    assert InventoryState(game).draw() == [
         "Inventory",
         "",
         "  ! potion",
@@ -101,7 +101,7 @@ def test_the_inventory_lists_what_the_player_carries_in_order():
 def test_the_inventory_says_when_it_is_empty():
     game = game_on(ROOM, position=(2, 2))
 
-    assert InventoryState().draw(game) == [
+    assert InventoryState(game).draw() == [
         "Inventory",
         "",
         "  You aren't carrying anything yet.",
@@ -111,19 +111,36 @@ def test_the_inventory_says_when_it_is_empty():
 
 
 def test_the_help_lists_every_key():
-    lines = HelpState().draw(game_on(ROOM, position=(2, 2)))
+    lines = HelpState(game_on(ROOM, position=(2, 2))).draw()
 
     assert lines[0] == "How to play"
     for key in ("w a s d", ">", "i", "?", "q"):
         assert any(line.startswith(f"  {key} ") for line in lines), key
 
 
-@pytest.mark.parametrize("state", [InventoryState(), HelpState()])
+@pytest.mark.parametrize("screen", [InventoryState, HelpState])
 @pytest.mark.parametrize("text", ["", "q", "w", "i"])
-def test_any_input_on_the_inventory_or_help_goes_back_to_playing(state, text):
+def test_any_input_on_the_inventory_or_help_goes_back_to_playing(screen, text):
     game = game_on(ROOM, position=(2, 2))
     before = copy.deepcopy(game)
 
-    assert isinstance(state.handle(game, text), PlayingState)
+    back = screen(game).handle(text)
+
+    assert isinstance(back, PlayingState)
+    assert back.game is game
     # Keys only act on the playing screen, so nothing else changes.
     assert game == before
+
+
+@pytest.mark.parametrize("screen", [PlayingState, InventoryState, HelpState])
+def test_every_screen_of_a_game_says_goodbye_with_its_level_and_seed(screen):
+    game = Game.new(seed=42)
+
+    assert screen(game).goodbye() == "Goodbye! You reached level 1 of seed 42."
+
+
+def test_the_inventory_and_help_open_on_the_same_game():
+    game = game_on(ROOM, position=(2, 2))
+
+    assert PlayingState(game).handle("i").game is game
+    assert PlayingState(game).handle("?").game is game

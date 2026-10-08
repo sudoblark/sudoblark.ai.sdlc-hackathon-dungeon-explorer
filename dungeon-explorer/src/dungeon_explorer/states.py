@@ -2,10 +2,12 @@
 
 This is the State pattern from Game Programming Patterns: the game loop only
 ever talks to the current state, which says what to draw and which state
-comes next. Returning None ends the game.
+comes next. Returning None ends the game. Each state holds whatever it shows,
+so a state can start a new game or leave a finished one behind.
 """
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 
 from dungeon_explorer.commands import parse_command
 from dungeon_explorer.game import Game
@@ -18,18 +20,34 @@ class State(ABC):
     """One screen of the game."""
 
     @abstractmethod
-    def draw(self, game: Game) -> list[str]:
+    def draw(self) -> list[str]:
         """The screen's lines of text."""
 
     @abstractmethod
-    def handle(self, game: Game, text: str) -> "State | None":
+    def handle(self, text: str) -> "State | None":
         """Act on a line of input, and return the next state, or None to quit."""
 
+    @abstractmethod
+    def goodbye(self) -> str:
+        """What to say if the game ends on this screen."""
 
-class PlayingState(State):
+
+@dataclass
+class _InGameState(State):
+    """A screen of a game in play, which it holds."""
+
+    game: Game
+
+    def goodbye(self) -> str:
+        game = self.game
+        return f"Goodbye! You reached level {game.depth} of seed {game.seed}."
+
+
+class PlayingState(_InGameState):
     """The dungeon: the view, the mini-map, and where the player is."""
 
-    def draw(self, game: Game) -> list[str]:
+    def draw(self) -> list[str]:
+        game = self.game
         view = draw_view(game)
         mini_map = draw_mini_map(game)
         height = max(len(view), len(mini_map))
@@ -40,27 +58,28 @@ class PlayingState(State):
             game.message,
         ]
 
-    def handle(self, game: Game, text: str) -> State | None:
+    def handle(self, text: str) -> State | None:
         key = text.strip().lower()
         if key == "q":
             return None
         if key == "i":
-            return InventoryState()
+            return InventoryState(self.game)
         if key == "?":
-            return HelpState()
+            return HelpState(self.game)
         command = parse_command(key)
         if command is not None:
-            command.execute(game)
+            command.execute(self.game)
         elif key:
-            game.message = f"Unknown command {text.strip()!r}. Press ? for help."
+            self.game.message = f"Unknown command {text.strip()!r}. Press ? for help."
         return self
 
 
-class InventoryState(State):
+class InventoryState(_InGameState):
     """What the player is carrying, in the order they picked it up."""
 
-    def draw(self, game: Game) -> list[str]:
-        items = [f"  {item.glyph} {item.name}" for item in game.player.inventory]
+    def draw(self) -> list[str]:
+        inventory = self.game.player.inventory
+        items = [f"  {item.glyph} {item.name}" for item in inventory]
         return [
             "Inventory",
             "",
@@ -69,14 +88,14 @@ class InventoryState(State):
             BACK,
         ]
 
-    def handle(self, game: Game, text: str) -> State | None:
-        return PlayingState()
+    def handle(self, text: str) -> State | None:
+        return PlayingState(self.game)
 
 
-class HelpState(State):
+class HelpState(_InGameState):
     """The keys, and what they do."""
 
-    def draw(self, game: Game) -> list[str]:
+    def draw(self) -> list[str]:
         return [
             "How to play",
             "",
@@ -90,8 +109,8 @@ class HelpState(State):
             BACK,
         ]
 
-    def handle(self, game: Game, text: str) -> State | None:
-        return PlayingState()
+    def handle(self, text: str) -> State | None:
+        return PlayingState(self.game)
 
 
 def _frame(lines: list[str], height: int) -> list[str]:

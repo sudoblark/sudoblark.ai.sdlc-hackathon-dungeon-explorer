@@ -35,11 +35,11 @@ def test_the_loop_draws_each_screen_and_hands_each_line_to_it():
     game = game_on(ROOM, position=(1, 1))
     drawn: list[str] = []
 
-    game_loop(game, read_line=_script("d", "i", "", "q"), write=drawn.append)
+    game_loop(PlayingState(game), _script("d", "i", "", "q"), drawn.append)
 
-    playing, inventory = PlayingState(), InventoryState()
-    assert drawn[0] == "\n".join(playing.draw(game_on(ROOM, position=(1, 1))))
-    assert drawn[2] == "\n".join(inventory.draw(game))
+    start = PlayingState(game_on(ROOM, position=(1, 1)))
+    assert drawn[0] == "\n".join(start.draw())
+    assert drawn[2] == "\n".join(InventoryState(game).draw())
     assert len(drawn) == 5  # four screens, then goodbye
     assert game.player.position == (2, 1)
 
@@ -48,7 +48,7 @@ def test_quitting_says_goodbye_with_the_level_and_seed():
     game = Game.new(seed=42)
     drawn: list[str] = []
 
-    game_loop(game, read_line=_script("q"), write=drawn.append)
+    game_loop(PlayingState(game), _script("q"), drawn.append)
 
     assert drawn[-1] == "Goodbye! You reached level 1 of seed 42."
 
@@ -57,7 +57,7 @@ def test_the_loop_stops_when_the_input_runs_out():
     game = game_on(ROOM, position=(1, 1))
     drawn: list[str] = []
 
-    game_loop(game, read_line=_script("d"), write=drawn.append)
+    game_loop(PlayingState(game), _script("d"), drawn.append)
 
     assert len(drawn) == 3  # two screens, then goodbye
     assert drawn[-1].startswith("Goodbye!")
@@ -67,7 +67,7 @@ def test_the_loop_clears_the_terminal_before_each_screen_when_asked():
     game = game_on(ROOM, position=(1, 1))
     drawn: list[str] = []
 
-    game_loop(game, read_line=_script("d", "q"), write=drawn.append, clear=True)
+    game_loop(PlayingState(game), _script("d", "q"), drawn.append, clear=True)
 
     screens, goodbye = drawn[:-1], drawn[-1]
     assert all(screen.startswith(CLEAR_SCREEN) for screen in screens)
