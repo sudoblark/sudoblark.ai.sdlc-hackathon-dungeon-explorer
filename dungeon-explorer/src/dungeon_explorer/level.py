@@ -1,10 +1,24 @@
 """The tiles, rooms and items a dungeon level is made of."""
 
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import Enum, StrEnum
 
 # A tile's position, as (x, y).
 Point = tuple[int, int]
+
+
+class Direction(Enum):
+    """A step of one tile. Its value is (dx, dy), and y grows downwards."""
+
+    NORTH = (0, -1)
+    EAST = (1, 0)
+    SOUTH = (0, 1)
+    WEST = (-1, 0)
+
+    def step_from(self, point: Point) -> Point:
+        """The tile one step from `point` in this direction."""
+        dx, dy = self.value
+        return (point[0] + dx, point[1] + dy)
 
 
 class Tile(StrEnum):

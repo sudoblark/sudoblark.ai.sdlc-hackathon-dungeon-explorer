@@ -1,6 +1,19 @@
 import pytest
 
-from dungeon_explorer.level import Level, Room, Tile
+from dungeon_explorer.level import Direction, Level, Room, Tile
+
+
+@pytest.mark.parametrize(
+    ("direction", "point"),
+    [
+        (Direction.NORTH, (3, 2)),
+        (Direction.EAST, (4, 3)),
+        (Direction.SOUTH, (3, 4)),
+        (Direction.WEST, (2, 3)),
+    ],
+)
+def test_a_direction_steps_one_tile_from_a_point(direction, point):
+    assert direction.step_from((3, 3)) == point
 
 
 def test_room_right_and_bottom_are_just_past_its_floor():
