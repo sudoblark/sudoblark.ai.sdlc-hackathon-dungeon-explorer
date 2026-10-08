@@ -14,7 +14,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from dungeon_explorer.commands import parse_command
-from dungeon_explorer.game import Game
+from dungeon_explorer.game import PLAYER_HIT_POINTS, Game
 from dungeon_explorer.generate import ITEMS, MONSTERS
 from dungeon_explorer.level import Tile
 from dungeon_explorer.render import PLAYER, STAIRS_DOWN, draw_mini_map, draw_view
@@ -177,7 +177,8 @@ class PlayingState(_InGameState):
         newest = [str(message) for message in game.log[-LOG_LINES:]]
         return [
             TITLE + MENU.rjust(width - len(TITLE)),
-            f"Level {game.depth} of {game.floors}   Seed {game.seed}",
+            f"Level {game.depth} of {game.floors}   Seed {game.seed}"
+            f"   HP {game.player.hit_points}/{PLAYER_HIT_POINTS}",
             *beside,
             *[""] * (LOG_LINES - len(newest)),
             *newest,

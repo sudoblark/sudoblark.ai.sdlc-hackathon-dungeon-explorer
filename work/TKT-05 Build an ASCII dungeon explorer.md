@@ -51,7 +51,7 @@ A turn-based dungeon explorer drawn in ASCII in the terminal. Each level is gene
 
 ### Stretch goals
 
-Rows 15 to 28 are stretch goals, added once every acceptance criterion was met.
+Rows 15 to 29 are stretch goals, added once every acceptance criterion was met.
 
 | # | Commit message | What it covers | Status |
 | --- | --- | --- | --- |
@@ -64,11 +64,12 @@ Rows 15 to 28 are stretch goals, added once every acceptance criterion was met.
 | 21 | `feat(states): add a title screen with new game and exit (TKT-05)` | The game opens on a title screen with New Game and Exit. New Game lets the player type their own seed, or take a random one, with `--seed` filling it in; the person asked for this when choosing seeded floor counts. Typing a seed needs a text entry on that screen, since other keys act on a single press. Finishing goes back to the title. The person chose highlighted buttons on the title screen (`w` and `s` to move, Enter to pick), a seed screen (digits, Backspace, Enter, blank for random, `q` to go back), and `q` while playing asking `y` to confirm before going back to the title, since `q` sits next to `w`. Arrows and Escape are now skipped by the key reader, so they can't be taken for Enter. Tests: every transition, and the seed each new game gets. | ✅ |
 | 22 | `feat(generate): place monsters and show the ones in sight (TKT-05)` | Seeded monsters on each level, kept out of the start room, drawn in the view and on the mini-map only while the player has a clear line of sight to them. The person chose three kinds that get tougher deeper (rat `r` from floor 1, goblin `g` from 2, orc `o` from 4, configurable later through the TOML file), a `Monster` dataclass with the kinds as templates, and a random number on each floor whose fewest and most both rise by one per floor (1 to 3 on floor 1 to start). Monsters also block the player's way until row 24 turns that into an attack. Tests: the placement rules, line of sight through floor and blocked by walls, the drawing, and seed 42's monsters pinned. | ✅ |
 | 23 | `feat(game): monsters chase the player they can see (TKT-05)` | After each turn, each monster that can see the player steps one tile towards them, never into a wall, another monster or the player. A step is a turn; bumping into a wall or a monster, or `>` away from the stairs, isn't, so a slip never lets monsters close in, and a new floor's monsters don't move on arrival. A monster steps along the axis the player is furthest away on, falling back to the other if blocked. Tests: chasing, staying put out of sight, and being blocked. | ✅ |
-| 24 | `feat(game): attack a monster by walking into it (TKT-05)` | Walking into a monster hits it instead of moving. Monsters have hit points and are removed at zero, with messages. The person chose damage by weapon, with fists doing 1: a dagger `)` does 2 from floor 1, a sword `/` 3 from floor 2, and an axe `\` 4 from floor 4, configurable later through the TOML file. The player always fights with the strongest weapon carried, which the inventory marks as in hand. An attack is a turn. Tests: hitting, killing and the messages. | |
-| 25 | `feat(game): monsters hit back and hit points run out (TKT-05)` | The player has hit points, shown on the status line, and a monster next to the player at the end of a turn hits them. Tests: taking damage, the status line, and hit points stopping at zero. | |
-| 26 | `feat(states): show a game over screen at zero hit points (TKT-05)` | At zero hit points the game shows a game over screen, and any key goes back to the title. Tests: the transition and what it draws. | |
-| 27 | `feat(settings): read the game's settings from a TOML file (TKT-05)` | The level size, rooms, items, monsters, the minimum and maximum number of floors, view size and number of log lines come from a TOML file read with `tomllib`, with today's values as the defaults. The format and the file's location are signed off at this commit. Tests: the defaults, overriding a setting, and rejecting bad values. | |
-| 28 | `feat(settings): show which settings a seed was played with (TKT-05)` | A short fingerprint of the settings beside the seed, on screen and in the goodbye line, so a replay can tell it has the same settings. Tests: the same settings give the same fingerprint, and any change gives a different one. | |
+| 24 | `feat(game): attack a monster by walking into it (TKT-05)` | Walking into a monster hits it instead of moving. Monsters have hit points and are removed at zero, with messages. The person chose damage by weapon, with fists doing 1: a dagger `)` does 2 from floor 1, a sword `/` 3 from floor 2, and an axe `\` 4 from floor 4, configurable later through the TOML file. The player always fights with the strongest weapon carried, which the inventory marks as in hand. An attack is a turn. Tests: hitting, killing and the messages. | ✅ |
+| 25 | `feat(game): monsters hit back and hit points run out (TKT-05)` | The player has hit points, shown on the status line, and monsters hit back. The person chose 20 hit points, and monsters that move or attack: on its turn, a monster next to the player attacks instead of moving, so one that has just arrived waits a turn. Tests: taking damage, the status line, and hit points stopping at zero. | |
+| 26 | `feat(game): drink a potion to heal (TKT-05)` | `p` drinks a potion from the inventory, healing 5 hit points up to the most the player can have. Drinking is a turn, so monsters then act. With no potions, or at full health, it says so and isn't a turn. The person chose drinking with a key over healing on pick-up, when choosing hit points in row 25. Tests: healing, the cap, the potion leaving the inventory, and the two refusals. | |
+| 27 | `feat(states): show a game over screen at zero hit points (TKT-05)` | At zero hit points the game shows a game over screen, and any key goes back to the title. Tests: the transition and what it draws. | |
+| 28 | `feat(settings): read the game's settings from a TOML file (TKT-05)` | The level size, rooms, items, monsters, the minimum and maximum number of floors, view size and number of log lines come from a TOML file read with `tomllib`, with today's values as the defaults. The format and the file's location are signed off at this commit. Tests: the defaults, overriding a setting, and rejecting bad values. | |
+| 29 | `feat(settings): show which settings a seed was played with (TKT-05)` | A short fingerprint of the settings beside the seed, on screen and in the goodbye line, so a replay can tell it has the same settings. Tests: the same settings give the same fingerprint, and any change gives a different one. | |
 
 ## Post-commit testing
 
@@ -84,7 +85,7 @@ Rows 15 to 28 are stretch goals, added once every acceptance criterion was met.
 
 ### Stretch goals
 
-Checks 8 to 17 test the stretch goals, once rows 15 to 28 have landed.
+Checks 8 to 18 test the stretch goals, once rows 15 to 29 have landed.
 
 | # | Check | How | Status |
 | --- | --- | --- | --- |
@@ -96,8 +97,9 @@ Checks 8 to 17 test the stretch goals, once rows 15 to 28 have landed.
 | 13 | Monsters appear and chase | Monsters only show when they're in sight, and step towards the player when they can see them. Out of sight, they stay put. | |
 | 14 | Monsters can be fought | Walking into a monster hits it, and enough hits kill it. | |
 | 15 | Monsters hurt back, and the game can be lost | Standing next to a monster costs hit points, shown on the status line. At zero, the game over screen shows, then the title. | |
-| 16 | Settings change the game | Changing a setting in the TOML file, such as fewer floors or a smaller level, changes the game, and the fingerprint beside the seed changes with it. | |
-| 17 | The original checks still hold | Re-run checks 1 to 3 on the finished stretch goals, with input that starts a game from the title screen first. | |
+| 16 | Potions heal | Pick up a potion, take some hits, then press `p`: hit points go up by 5, never past the most, and the potion leaves the inventory. With no potions, `p` says so. | |
+| 17 | Settings change the game | Changing a setting in the TOML file, such as fewer floors or a smaller level, changes the game, and the fingerprint beside the seed changes with it. | |
+| 18 | The original checks still hold | Re-run checks 1 to 3 on the finished stretch goals, with input that starts a game from the title screen first. | |
 
 ## Acceptance criteria
 
@@ -127,4 +129,4 @@ The person added these after play-testing:
 - Saving and loading from a menu. Levels regenerate from the seed, so a save only needs the seed, the depth, the player's position and inventory, the explored tiles, and which items have been picked up on the current level.
 - A log that keeps past messages instead of replacing them, with a key to clear it. The person added this while trying row 15.
 
-The person chose every stretch goal except saving and loading, planned as rows 15 to 28, with checks 8 to 17.
+The person chose every stretch goal except saving and loading, planned as rows 15 to 29, with checks 8 to 18.

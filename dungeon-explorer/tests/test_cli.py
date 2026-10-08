@@ -103,7 +103,7 @@ def test_a_new_game_plays_the_seed_given_on_the_command_line(monkeypatch, capsys
     code, out = _play(monkeypatch, capsys, ["--seed", "42"], *script)
 
     assert code == 0
-    assert f"Level 1 of {floor_count(42)}   Seed 42" in out.splitlines()
+    assert f"Level 1 of {floor_count(42)}   Seed 42   HP 20/20" in out.splitlines()
     assert out.strip().endswith("Goodbye!")
 
 
@@ -113,7 +113,7 @@ def test_a_typed_seed_replaces_the_one_filled_in(monkeypatch, capsys):
 
     _, out = _play(monkeypatch, capsys, ["--seed", "42"], *script)
 
-    assert f"Level 1 of {floor_count(7)}   Seed 7" in out.splitlines()
+    assert f"Level 1 of {floor_count(7)}   Seed 7   HP 20/20" in out.splitlines()
 
 
 def test_the_same_seed_draws_the_same_game(monkeypatch, capsys):
@@ -131,7 +131,9 @@ def test_without_a_seed_the_command_picks_one_and_shows_it(monkeypatch, capsys):
 
     _, out = _play(monkeypatch, capsys, [], *START, "d")
 
-    assert f"Level 1 of {floor_count(123456)}   Seed 123456" in out.splitlines()
+    assert (
+        f"Level 1 of {floor_count(123456)}   Seed 123456   HP 20/20" in out.splitlines()
+    )
     assert re.search(r"Goodbye! You reached level 1 of seed 123456\.$", out.strip())
 
 

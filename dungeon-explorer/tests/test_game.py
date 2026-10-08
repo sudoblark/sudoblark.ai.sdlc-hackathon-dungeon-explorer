@@ -401,7 +401,7 @@ def test_walking_into_a_monster_attacks_it_instead_of_moving():
 
     assert game.player.position == (1, 1)
     assert goblin.hit_points == 3
-    assert str(game.log[-1]) == "You hit the goblin with your fists."
+    assert str(game.log[0]) == "You hit the goblin with your fists."
 
 
 def test_a_weapon_hits_for_its_damage():
@@ -412,7 +412,7 @@ def test_a_weapon_hits_for_its_damage():
     game.move(Direction.EAST)
 
     assert goblin.hit_points == 2
-    assert str(game.log[-1]) == "You hit the goblin with your dagger."
+    assert str(game.log[0]) == "You hit the goblin with your dagger."
 
 
 def test_a_monster_dies_when_its_hit_points_run_out():
@@ -428,14 +428,17 @@ def test_a_monster_dies_when_its_hit_points_run_out():
     assert game.player.position == (2, 1)
 
 
-def test_hitting_again_is_counted_in_the_log():
+def test_a_monster_that_survives_a_hit_hits_back():
     goblin = _goblin((2, 1))
     game = game_on(level_from(*CORRIDOR, monsters=[goblin]), position=(1, 1))
 
-    for _ in range(3):
-        game.move(Direction.EAST)
+    game.move(Direction.EAST)
 
-    assert str(game.log[-1]) == "You hit the goblin with your fists. (x3)"
+    assert [str(message) for message in game.log] == [
+        "You hit the goblin with your fists.",
+        "The goblin hits you.",
+    ]
+    assert game.player.hit_points == 18
 
 
 def test_the_player_fights_with_the_strongest_weapon_carried():
@@ -539,13 +542,15 @@ def test_a_monster_out_of_sight_stays_where_it_is():
     assert hidden.position == (3, 3)
 
 
-def test_a_monster_next_to_the_player_stays_put():
+def test_a_monster_next_to_the_player_attacks_instead_of_moving():
     rat = _rat((3, 1))
     game = game_on(level_from(*OPEN_ROOM, monsters=[rat]), position=(1, 1))
 
     game.move(Direction.EAST)
 
     assert rat.position == (3, 1)
+    assert game.player.hit_points == 19
+    assert str(game.log[-1]) == "The rat hits you."
 
 
 def test_a_wall_in_the_way_sends_a_monster_along_the_other_axis():
@@ -585,3 +590,45 @@ def test_bumping_into_a_wall_doesnt_give_the_monsters_a_turn():
     game.move(Direction.NORTH)
 
     assert rat.position == (6, 2)
+
+
+def test_the_player_starts_with_twenty_hit_points():
+    assert Game.new(seed=42).player.hit_points == 20
+
+
+def test_a_monster_that_has_just_arrived_waits_a_turn_before_hitting():
+    rat = _rat((4, 1))
+    game = game_on(level_from(*OPEN_ROOM, monsters=[rat]), position=(1, 1))
+
+    game.move(Direction.EAST)
+    assert rat.position == (3, 1)
+    assert game.player.hit_points == 20
+
+    # The player hits the rat, which survives the punch and hits back.
+    game.move(Direction.EAST)
+    assert game.player.hit_points == 19
+
+
+def test_tougher_monsters_hit_harder():
+    goblin = _goblin((3, 1))
+    game = game_on(level_from(*OPEN_ROOM, monsters=[goblin]), position=(1, 1))
+
+    game.move(Direction.EAST)
+
+    assert game.player.hit_points == 18
+
+
+def test_hit_points_stop_at_zero_and_the_last_hit_kills():
+    goblin, rat = _goblin((2, 1)), _rat((1, 2))
+    level = level_from(*OPEN_ROOM, monsters=[goblin, rat])
+    game = game_on(level, position=(1, 1))
+    game.player.hit_points = 1
+
+    game.move(Direction.NORTH)  # a wall: not a turn, so nobody acts
+    assert game.player.hit_points == 1
+    game.move(Direction.EAST)  # an attack: the goblin hits back first
+
+    assert game.player.hit_points == 0
+    assert str(game.log[-1]) == "The goblin kills you."
+    # Once the player is dead, the rat doesn't take its turn.
+    assert [str(m) for m in game.log].count("The rat hits you.") == 0

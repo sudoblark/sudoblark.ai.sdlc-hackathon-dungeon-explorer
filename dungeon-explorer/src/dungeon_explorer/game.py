@@ -8,6 +8,8 @@ from dungeon_explorer.level import Direction, Item, Level, Monster, Point, Tile
 
 # What the player hits with when they carry no weapon.
 FIST_DAMAGE = 1
+# The most hit points the player can have, and how many they start with.
+PLAYER_HIT_POINTS = 20
 
 
 @dataclass
@@ -19,6 +21,7 @@ class Player:
 
     position: Point
     inventory: list[Item] = field(default_factory=list)
+    hit_points: int = PLAYER_HIT_POINTS
 
     @property
     def weapon(self) -> Item | None:
@@ -147,17 +150,30 @@ class Game:
         self.say(f"You kill the {monster.name} with your {hit_with}.")
 
     def _monsters_act(self) -> None:
-        """Each monster that can see the player steps one tile towards them."""
+        """Each monster that can see the player takes its turn: one next to the
+        player attacks, and the rest step one tile closer. A monster that has
+        only just arrived next to the player waits until its next turn."""
         for monster in self.level.monsters:
-            if self.level.can_see(monster.position, self.player.position):
+            if self.player.hit_points == 0:
+                return
+            if _next_to(monster.position, self.player.position):
+                self._hit_player(monster)
+            elif self.level.can_see(monster.position, self.player.position):
                 self._step_towards_player(monster)
+
+    def _hit_player(self, monster: Monster) -> None:
+        """`monster` hits the player for its damage, never taking them below zero."""
+        player = self.player
+        player.hit_points = max(player.hit_points - monster.damage, 0)
+        if player.hit_points == 0:
+            self.say(f"The {monster.name} kills you.")
+        else:
+            self.say(f"The {monster.name} hits you.")
 
     def _step_towards_player(self, monster: Monster) -> None:
         """Move `monster` one tile closer to the player, along the axis they're
-        furthest apart on, or the other if that's blocked.
-
-        A monster already next to the player stays where it is, and none steps
-        into a wall or onto another monster.
+        furthest apart on, or the other if that's blocked. It never steps into
+        a wall, onto another monster, or onto the player.
         """
         (x, y), (player_x, player_y) = monster.position, self.player.position
         across, down = player_x - x, player_y - y
@@ -209,3 +225,8 @@ class Game:
 def _sign(number: int) -> int:
     """-1, 0 or 1, the direction `number` points in."""
     return (number > 0) - (number < 0)
+
+
+def _next_to(a: Point, b: Point) -> bool:
+    """Whether `a` and `b` are side by side: one step north, east, south or west."""
+    return abs(a[0] - b[0]) + abs(a[1] - b[1]) == 1

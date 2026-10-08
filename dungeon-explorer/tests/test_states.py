@@ -42,7 +42,7 @@ def test_playing_draws_a_header_the_panels_with_a_legend_and_the_log():
     view, mini_map = draw_view(game), draw_mini_map(game)
     menu = "i inventory  l log  c clear  ? help  q leave"
     assert lines[0] == "DUNGEON EXPLORER" + " " * 8 + menu
-    assert lines[1] == f"Level 1 of {floor_count(42)}   Seed 42"
+    assert lines[1] == f"Level 1 of {floor_count(42)}   Seed 42   HP 20/20"
     assert lines[2] == "+- View " + "-" * 24 + "+ +- Map " + "-" * 26 + "+"
     key = ["Key", "@ you", "# wall", ". floor", "> stairs"]
     key += ["! potion", "$ gold", "? scroll", ") dagger", "/ sword", "\\ axe"]
@@ -541,3 +541,10 @@ def test_the_inventory_marks_the_weapon_in_hand():
         "  / sword   (in hand)",
         "  / sword",
     ]
+
+
+def test_the_status_line_shows_the_players_hit_points():
+    game = game_on(ROOM, position=(2, 2))
+    game.player.hit_points = 7
+
+    assert PlayingState(game).draw()[1].endswith("   HP 7/20")
