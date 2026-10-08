@@ -14,7 +14,7 @@ A turn-based dungeon explorer drawn in ASCII in the terminal. Each level is gene
 ## Decisions
 
 - **Python, pytest and ruff, in `dungeon-explorer/`.** The person chose these. `random.Random(seed)` makes generation repeatable with no dependencies.
-- **uv manages the environment,** through `pyproject.toml` and a committed `uv.lock`. It's already installed, and `uv run` gives everyone the same pytest and ruff versions.
+- **uv manages the environment,** through `pyproject.toml` and a committed `uv.lock`. It's already installed, and `uv run` gives everyone the same pytest and ruff versions. The project needs Python 3.12 or later, so hackathon machines without the newest Python can still run it, and the checks are run on both 3.12 and 3.14.
 - **Line-based commands:** type a command and press Enter. `input()` is easy to drive from tests and works in any terminal. curses would give single keypresses, but it's hard to test and Windows doesn't ship it. The cost is pressing Enter after every move.
 - **A pure core, with input and output only in the CLI.** Generation, the game rules and rendering return data or strings, so tests can check exact output without a terminal.
 - **Each level's seed comes from the game seed and the depth,** so level N of seed S is always the same, whatever the player did on the levels before it.
