@@ -63,6 +63,9 @@ def test_level_size_and_tiles_come_from_its_grid():
             [Tile.WALL, Tile.FLOOR, Tile.WALL],
         ],
         rooms=[Room(x=1, y=1, width=1, height=1)],
+        player_start=(1, 1),
+        stairs_down=(1, 1),
+        items={},
     )
 
     assert level.width == 3

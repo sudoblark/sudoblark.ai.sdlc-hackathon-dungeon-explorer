@@ -3,7 +3,7 @@
 import heapq
 import random
 
-from dungeon_explorer.level import Level, Room, Tile
+from dungeon_explorer.level import Item, Level, Point, Room, Tile
 
 LEVEL_WIDTH = 64
 LEVEL_HEIGHT = 32
@@ -16,8 +16,14 @@ ROOM_GAP = 2
 # A bend in a corridor costs as much as this many steps, so corridors take a
 # short detour rather than zigzag.
 BEND_COST = 4
+ITEMS = (
+    Item("potion", "!"),
+    Item("gold", "$"),
+    Item("scroll", "?"),
+    Item("dagger", ")"),
+)
+ITEMS_PER_LEVEL = (3, 6)
 
-Point = tuple[int, int]
 # One tile north, east, south and west.
 STEPS: tuple[Point, ...] = ((0, -1), (1, 0), (0, 1), (-1, 0))
 
@@ -36,7 +42,16 @@ def generate_level(seed: int, depth: int) -> Level:
         for x, y in room.tiles():
             tiles[y][x] = Tile.FLOOR
     rooms = _join_rooms(tiles, rooms)
-    return Level(tiles=tiles, rooms=rooms)
+    player_start = rooms[0].centre
+    stairs_down = _place_stairs_down(rng, rooms)
+    items = _place_items(rng, rooms, taken={player_start, stairs_down})
+    return Level(
+        tiles=tiles,
+        rooms=rooms,
+        player_start=player_start,
+        stairs_down=stairs_down,
+        items=items,
+    )
 
 
 def _place_rooms(rng: random.Random) -> list[Room]:
@@ -54,6 +69,21 @@ def _place_rooms(rng: random.Random) -> list[Room]:
             if len(rooms) == MAX_ROOMS:
                 break
     return rooms
+
+
+def _place_stairs_down(rng: random.Random, rooms: list[Room]) -> Point:
+    """A random floor tile in any room but the first, where the player starts."""
+    room = rng.choice(rooms[1:])
+    return rng.choice(room.tiles())
+
+
+def _place_items(
+    rng: random.Random, rooms: list[Room], taken: set[Point]
+) -> dict[Point, Item]:
+    """Scatter a few random items on room floors, one to a tile, off `taken` tiles."""
+    floor = [tile for room in rooms for tile in room.tiles() if tile not in taken]
+    count = rng.randint(*ITEMS_PER_LEVEL)
+    return {tile: rng.choice(ITEMS) for tile in rng.sample(floor, count)}
 
 
 def _join_rooms(tiles: list[list[Tile]], rooms: list[Room]) -> list[Room]:

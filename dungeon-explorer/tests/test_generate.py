@@ -3,8 +3,13 @@ from itertools import combinations, pairwise
 
 import pytest
 
-from dungeon_explorer.generate import _join_rooms, generate_level
-from dungeon_explorer.level import Level, Room, Tile
+from dungeon_explorer.generate import (
+    ITEMS,
+    ITEMS_PER_LEVEL,
+    _join_rooms,
+    generate_level,
+)
+from dungeon_explorer.level import Item, Level, Point, Room, Tile
 
 SEEDS = range(20)
 
@@ -22,7 +27,7 @@ def _walls_between(a: Room, b: Room) -> int:
     return max(across, down)
 
 
-def _reachable(level: Level, start: tuple[int, int]) -> set[tuple[int, int]]:
+def _reachable(tiles: list[list[Tile]], start: Point) -> set[Point]:
     """Every floor tile a player could walk to from `start`, one step at a time."""
     seen = {start}
     frontier = [start]
@@ -30,19 +35,23 @@ def _reachable(level: Level, start: tuple[int, int]) -> set[tuple[int, int]]:
         x, y = frontier.pop()
         for step_x, step_y in ((0, -1), (1, 0), (0, 1), (-1, 0)):
             tile = (x + step_x, y + step_y)
-            if tile not in seen and level.tile(*tile) is Tile.FLOOR:
+            if tile not in seen and tiles[tile[1]][tile[0]] is Tile.FLOOR:
                 seen.add(tile)
                 frontier.append(tile)
     return seen
 
 
-def _floor(level: Level) -> set[tuple[int, int]]:
+def _floor(tiles: list[list[Tile]]) -> set[Point]:
     return {
         (x, y)
-        for y in range(level.height)
-        for x in range(level.width)
-        if level.tile(x, y) is Tile.FLOOR
+        for y, row in enumerate(tiles)
+        for x, tile in enumerate(row)
+        if tile is Tile.FLOOR
     }
+
+
+def _room_floor(level: Level) -> set[Point]:
+    return {tile for room in level.rooms for tile in room.tiles()}
 
 
 def _sides(room: Room) -> list[list[tuple[int, int]]]:
@@ -99,7 +108,7 @@ def test_every_floor_tile_can_be_walked_to_from_the_first_room(seed):
     level = _level(seed)
 
     start = level.rooms[0].centre
-    assert _reachable(level, start) == _floor(level)
+    assert _reachable(level.tiles, start) == _floor(level.tiles)
 
 
 @pytest.mark.parametrize("seed", SEEDS)
@@ -152,8 +161,41 @@ def test_a_room_no_corridor_can_reach_is_filled_in_and_dropped():
 
     assert joined == [start, above, beside]
     assert all(tiles[y][x] is Tile.WALL for x, y in boxed_in.tiles())
-    level = Level(tiles=tiles, rooms=joined)
-    assert _reachable(level, start.centre) == _floor(level)
+    assert _reachable(tiles, start.centre) == _floor(tiles)
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_the_player_starts_in_the_middle_of_the_first_room(seed):
+    level = _level(seed)
+
+    assert level.player_start == level.rooms[0].centre
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_the_stairs_down_are_on_the_floor_of_another_room(seed):
+    level = _level(seed)
+
+    other_rooms = level.rooms[1:]
+    assert any(level.stairs_down in room.tiles() for room in other_rooms)
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_a_few_items_lie_on_room_floors(seed):
+    level = _level(seed)
+
+    low, high = ITEMS_PER_LEVEL
+    assert low <= len(level.items) <= high
+    assert set(level.items) <= _room_floor(level)
+    assert all(item in ITEMS for item in level.items.values())
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_no_item_shares_a_tile_with_the_start_or_the_stairs(seed):
+    level = _level(seed)
+
+    # Items are keyed by tile, so no two items can share one.
+    assert level.player_start not in level.items
+    assert level.stairs_down not in level.items
 
 
 def test_the_same_seed_and_depth_give_the_same_level():
@@ -212,6 +254,21 @@ def test_the_same_seed_gives_the_same_map_in_every_run():
         "#########################################################.....##",
         "################################################################",
     ]
+
+
+def test_the_same_seed_gives_the_same_start_stairs_and_items_in_every_run():
+    level = _level(42)
+
+    assert level.player_start == (32, 25)
+    assert level.stairs_down == (47, 13)
+    assert level.items == {
+        (40, 13): Item("potion", "!"),
+        (40, 15): Item("potion", "!"),
+        (14, 15): Item("dagger", ")"),
+        (48, 13): Item("potion", "!"),
+        (44, 24): Item("scroll", "?"),
+        (46, 26): Item("potion", "!"),
+    }
 
 
 def test_different_seeds_give_different_levels():

@@ -1,7 +1,10 @@
-"""The tiles and rooms a dungeon level is made of."""
+"""The tiles, rooms and items a dungeon level is made of."""
 
 from dataclasses import dataclass
 from enum import StrEnum
+
+# A tile's position, as (x, y).
+Point = tuple[int, int]
 
 
 class Tile(StrEnum):
@@ -67,12 +70,26 @@ class Room:
         )
 
 
+@dataclass(frozen=True)
+class Item:
+    """Something the player can pick up. Its glyph is how it's drawn."""
+
+    name: str
+    glyph: str
+
+
 @dataclass
 class Level:
-    """A grid of tiles, indexed tiles[y][x], and the rooms carved into it."""
+    """A grid of tiles, indexed tiles[y][x], and what's been put on it.
+
+    `items` maps each tile with an item on it to that item.
+    """
 
     tiles: list[list[Tile]]
     rooms: list[Room]
+    player_start: Point
+    stairs_down: Point
+    items: dict[Point, Item]
 
     @property
     def width(self) -> int:
