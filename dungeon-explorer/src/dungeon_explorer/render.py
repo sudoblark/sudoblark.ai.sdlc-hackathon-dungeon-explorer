@@ -1,7 +1,7 @@
 """Draws the game as text: pure functions that turn the model into lines."""
 
 from dungeon_explorer.game import Game
-from dungeon_explorer.level import Point, Tile
+from dungeon_explorer.level import Monster, Point, Tile
 
 VIEW_WIDTH = 31
 VIEW_HEIGHT = 15
@@ -17,14 +17,16 @@ def draw_view(
 ) -> list[str]:
     """The tiles around the player at full scale, with the player in the middle.
 
-    Only explored tiles are drawn. Anything unexplored, or past the edge of
-    the level, is blank. Every line is exactly `width` characters long.
+    Only explored tiles, and monsters in sight, are drawn. Anything else, or
+    anything past the edge of the level, is blank. Every line is exactly
+    `width` characters long.
     """
     player_x, player_y = game.player.position
     left = player_x - width // 2
     top = player_y - height // 2
+    in_sight = _in_sight(game)
     return [
-        "".join(_glyph(game, (x, y)) for x in range(left, left + width))
+        "".join(_glyph(game, (x, y), in_sight) for x in range(left, left + width))
         for y in range(top, top + height)
     ]
 
@@ -36,18 +38,28 @@ def draw_mini_map(game: Game) -> list[str]:
     Every line is the same length.
     """
     level = game.level
+    in_sight = _in_sight(game)
     return [
         "".join(
-            _block_glyph(game, (x, y)) for x in range(0, level.width, MINI_MAP_SCALE)
+            _block_glyph(game, (x, y), in_sight)
+            for x in range(0, level.width, MINI_MAP_SCALE)
         )
         for y in range(0, level.height, MINI_MAP_SCALE)
     ]
 
 
-def _glyph(game: Game, point: Point) -> str:
-    """What to draw at `point`: the player, else what's on the floor, else the tile."""
+def _in_sight(game: Game) -> dict[Point, Monster]:
+    """The monsters the player can see, by where they are. Only these are drawn."""
+    return {monster.position: monster for monster in game.monsters_in_sight()}
+
+
+def _glyph(game: Game, point: Point, in_sight: dict[Point, Monster]) -> str:
+    """What to draw at `point`: the player, else a monster in sight, else
+    what's on the floor, else the tile."""
     if point == game.player.position:
         return PLAYER
+    if point in in_sight:
+        return in_sight[point].glyph
     level = game.level
     x, y = point
     on_level = 0 <= x < level.width and 0 <= y < level.height
@@ -60,12 +72,12 @@ def _glyph(game: Game, point: Point) -> str:
     return level.tile(x, y)
 
 
-def _block_glyph(game: Game, corner: Point) -> str:
+def _block_glyph(game: Game, corner: Point, in_sight: dict[Point, Monster]) -> str:
     """What the mini-map shows for the block of tiles with `corner` at its top left.
 
-    The player, else the stairs if they've been seen, else the first item
-    seen, else floor if any explored tile is floor, else wall if any tile is
-    explored, else blank.
+    The player, else a monster in sight, else the stairs if they've been
+    seen, else the first item seen, else floor if any explored tile is floor,
+    else wall if any tile is explored, else blank.
     """
     level = game.level
     left, top = corner
@@ -76,6 +88,9 @@ def _block_glyph(game: Game, corner: Point) -> str:
     ]
     if game.player.position in block:
         return PLAYER
+    for point in block:
+        if point in in_sight:
+            return in_sight[point].glyph
     seen = [point for point in block if point in game.explored]
     if level.stairs_down in seen:
         return STAIRS_DOWN

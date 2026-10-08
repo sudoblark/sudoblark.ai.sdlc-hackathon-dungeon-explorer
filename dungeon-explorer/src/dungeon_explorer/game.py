@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Self
 
 from dungeon_explorer.generate import floor_count, generate_level
-from dungeon_explorer.level import Direction, Item, Level, Point, Tile
+from dungeon_explorer.level import Direction, Item, Level, Monster, Point, Tile
 
 
 @dataclass
@@ -61,13 +61,17 @@ class Game:
         return cls(seed=seed, level=level, player=Player(level.player_start))
 
     def move(self, direction: Direction) -> None:
-        """Step the player one tile, unless there's a wall in the way.
+        """Step the player one tile, unless a wall or a monster is in the way.
 
         Anything on the tile they step onto goes into their inventory.
         """
         target = direction.step_from(self.player.position)
         if not self._is_floor(target):
             self.say("A wall is in the way.")
+            return
+        monster = self.level.monster_at(target)
+        if monster is not None:
+            self.say(f"A {monster.name} is in the way.")
             return
         self.player.position = target
         self._pick_up()
@@ -95,6 +99,13 @@ class Game:
         self.say(f"You go down the stairs to level {self.depth}.")
         if self.depth == self.floors:
             self.say("This is the last floor: its stairs lead out of the dungeon.")
+
+    def monsters_in_sight(self) -> list[Monster]:
+        """The monsters the player can see from where they stand."""
+        position = self.player.position
+        return [
+            m for m in self.level.monsters if self.level.can_see(position, m.position)
+        ]
 
     def say(self, text: str) -> None:
         """Add `text` to the log, counting it again if it's the same as the last."""

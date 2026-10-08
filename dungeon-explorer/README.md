@@ -47,6 +47,7 @@ The left panel shows the area around you, and the right panel is a mini-map of t
 | `.` | Floor |
 | `>` | Stairs down |
 | `!` `$` `?` `)` | A potion, gold, a scroll or a dagger |
+| `r` `g` `o` | A rat, a goblin or an orc. Monsters only show while you can see them, and deeper floors have more of them, and tougher ones. |
 
 ## Running the checks
 

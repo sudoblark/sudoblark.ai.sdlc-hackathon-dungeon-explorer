@@ -1,6 +1,6 @@
-"""The tiles, rooms and items a dungeon level is made of."""
+"""The tiles, rooms, items and monsters a dungeon level is made of."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, StrEnum
 
 # A tile's position, as (x, y).
@@ -93,6 +93,21 @@ class Item:
 
 
 @dataclass
+class Monster:
+    """Something in the dungeon that fights back. Its glyph is how it's drawn.
+
+    The kinds of monster are templates without a position. Each monster
+    placed on a level is a copy with its own position and hit points.
+    """
+
+    name: str
+    glyph: str
+    hit_points: int
+    damage: int
+    position: Point = (0, 0)
+
+
+@dataclass
 class Level:
     """A grid of tiles, indexed tiles[y][x], and what's been put on it.
 
@@ -104,6 +119,7 @@ class Level:
     player_start: Point
     stairs_down: Point
     items: dict[Point, Item]
+    monsters: list[Monster] = field(default_factory=list)
 
     @property
     def width(self) -> int:
@@ -115,3 +131,40 @@ class Level:
 
     def tile(self, x: int, y: int) -> Tile:
         return self.tiles[y][x]
+
+    def monster_at(self, point: Point) -> Monster | None:
+        return next((m for m in self.monsters if m.position == point), None)
+
+    def can_see(self, a: Point, b: Point) -> bool:
+        """Whether a straight line from `a` to `b` crosses only floor.
+
+        The line is always drawn from the lower point to the higher, so
+        seeing works both ways: if a can see b, b can see a.
+        """
+        start, end = sorted((a, b))
+        between = _line(start, end)[1:-1]
+        return all(self.tile(x, y) is Tile.FLOOR for x, y in between)
+
+
+def _line(a: Point, b: Point) -> list[Point]:
+    """The tiles on a straight line from `a` to `b`, both included.
+
+    This is Bresenham's line algorithm, which steps one tile at a time along
+    the longer axis and tracks how far the line has drifted on the other.
+    """
+    (x, y), (end_x, end_y) = a, b
+    dx, dy = abs(end_x - x), -abs(end_y - y)
+    step_x = 1 if x < end_x else -1
+    step_y = 1 if y < end_y else -1
+    error = dx + dy
+    tiles = [(x, y)]
+    while (x, y) != (end_x, end_y):
+        twice = 2 * error
+        if twice >= dy:
+            error += dy
+            x += step_x
+        if twice <= dx:
+            error += dx
+            y += step_y
+        tiles.append((x, y))
+    return tiles

@@ -2,8 +2,9 @@
 
 import heapq
 import random
+from dataclasses import replace
 
-from dungeon_explorer.level import Item, Level, Point, Room, Tile
+from dungeon_explorer.level import Item, Level, Monster, Point, Room, Tile
 
 # Each seed's dungeon has between these many floors.
 MIN_FLOORS = 3
@@ -26,6 +27,15 @@ ITEMS = (
     Item("dagger", ")"),
 )
 ITEMS_PER_LEVEL = (3, 6)
+# Each kind of monster, and the first floor it can turn up on.
+MONSTERS = (
+    (Monster("rat", "r", hit_points=2, damage=1), 1),
+    (Monster("goblin", "g", hit_points=4, damage=2), 2),
+    (Monster("orc", "o", hit_points=7, damage=3), 4),
+)
+# The fewest and most monsters on the first floor. Each floor deeper adds
+# one to both.
+MONSTERS_PER_FLOOR = (1, 3)
 
 # One tile north, east, south and west.
 STEPS: tuple[Point, ...] = ((0, -1), (1, 0), (0, 1), (-1, 0))
@@ -57,12 +67,14 @@ def generate_level(seed: int, depth: int) -> Level:
     # Nothing goes on the eight tiles around the stairs, so they stand alone
     # in the view and never share a block on the mini-map.
     items = _place_items(rng, rooms, taken={player_start, *_around(stairs_down)})
+    monsters = _place_monsters(rng, rooms, depth, taken={stairs_down, *items})
     return Level(
         tiles=tiles,
         rooms=rooms,
         player_start=player_start,
         stairs_down=stairs_down,
         items=items,
+        monsters=monsters,
     )
 
 
@@ -96,6 +108,20 @@ def _place_items(
     floor = [tile for room in rooms for tile in room.tiles() if tile not in taken]
     count = rng.randint(*ITEMS_PER_LEVEL)
     return {tile: rng.choice(ITEMS) for tile in rng.sample(floor, count)}
+
+
+def _place_monsters(
+    rng: random.Random, rooms: list[Room], depth: int, taken: set[Point]
+) -> list[Monster]:
+    """Place monsters on the floors of every room but the first, where the
+    player starts. Deeper floors get more of them, and tougher kinds."""
+    floor = [tile for room in rooms[1:] for tile in room.tiles() if tile not in taken]
+    fewest, most = (count + depth - 1 for count in MONSTERS_PER_FLOOR)
+    count = min(rng.randint(fewest, most), len(floor))
+    kinds = [kind for kind, first_floor in MONSTERS if first_floor <= depth]
+    return [
+        replace(rng.choice(kinds), position=tile) for tile in rng.sample(floor, count)
+    ]
 
 
 def _around(point: Point) -> set[Point]:

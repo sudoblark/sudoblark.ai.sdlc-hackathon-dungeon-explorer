@@ -15,7 +15,7 @@ from dataclasses import dataclass
 
 from dungeon_explorer.commands import parse_command
 from dungeon_explorer.game import Game
-from dungeon_explorer.generate import ITEMS
+from dungeon_explorer.generate import ITEMS, MONSTERS
 from dungeon_explorer.level import Tile
 from dungeon_explorer.render import PLAYER, STAIRS_DOWN, draw_mini_map, draw_view
 
@@ -40,6 +40,7 @@ LEGEND = [
     (Tile.FLOOR, "floor"),
     (STAIRS_DOWN, "stairs"),
     *((item.glyph, item.name) for item in ITEMS),
+    *((monster.glyph, monster.name) for monster, _ in MONSTERS),
 ]
 
 

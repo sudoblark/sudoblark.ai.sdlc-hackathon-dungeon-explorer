@@ -8,19 +8,23 @@ from dungeon_explorer.generate import (
     ITEMS_PER_LEVEL,
     MAX_FLOORS,
     MIN_FLOORS,
+    MONSTERS,
+    MONSTERS_PER_FLOOR,
     _join_rooms,
     floor_count,
     generate_level,
 )
-from dungeon_explorer.level import Item, Level, Point, Room, Tile
+from dungeon_explorer.level import Item, Level, Monster, Point, Room, Tile
 
 SEEDS = range(20)
+# Fewer seeds for tests that look at several floors of each.
+DEPTH_SEEDS = range(10)
 
 
 @cache
-def _level(seed: int) -> Level:
-    """Level 1 for a seed, generated once and shared, since tests only read it."""
-    return generate_level(seed, depth=1)
+def _level(seed: int, depth: int = 1) -> Level:
+    """A seed's level, generated once and shared, since most tests only read it."""
+    return generate_level(seed, depth)
 
 
 def _walls_between(a: Room, b: Room) -> int:
@@ -316,3 +320,60 @@ def test_each_dungeon_has_between_the_fewest_and_most_floors():
 def test_the_same_seed_always_has_the_same_number_of_floors():
     assert floor_count(42) == floor_count(42) == 7
     assert floor_count(1) == 3
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_monsters_stand_on_the_floor_of_any_room_but_the_first(seed):
+    level = _level(seed)
+
+    first_room = set(level.rooms[0].tiles())
+    other_rooms = _room_floor(level) - first_room
+    positions = [monster.position for monster in level.monsters]
+    assert set(positions) <= other_rooms
+    assert len(set(positions)) == len(positions)
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_monsters_keep_off_the_stairs_and_the_items(seed):
+    level = _level(seed)
+
+    for monster in level.monsters:
+        assert monster.position != level.stairs_down
+        assert monster.position not in level.items
+
+
+@pytest.mark.parametrize("depth", [1, 2, 3, 4, 5])
+def test_each_floor_deeper_has_more_monsters(depth):
+    fewest, most = (count + depth - 1 for count in MONSTERS_PER_FLOOR)
+
+    for seed in DEPTH_SEEDS:
+        assert fewest <= len(_level(seed, depth).monsters) <= most
+
+
+@pytest.mark.parametrize("depth", [1, 2, 3, 4, 5])
+def test_tougher_monsters_only_turn_up_deeper(depth):
+    allowed = {kind.name for kind, first_floor in MONSTERS if first_floor <= depth}
+
+    found = {m.name for seed in DEPTH_SEEDS for m in _level(seed, depth).monsters}
+
+    assert found <= allowed
+    # Over ten seeds, every kind the floor allows turns up.
+    assert found == allowed
+
+
+def test_each_monster_placed_is_its_own_copy():
+    level = generate_level(42, depth=1)
+    first, second = level.monsters[:2]
+
+    first.hit_points = 0
+
+    assert second.hit_points == 2
+    assert all(kind.hit_points > 0 for kind, _ in MONSTERS)
+
+
+def test_the_same_seed_gives_the_same_monsters_in_every_run():
+    assert _level(42).monsters == [
+        Monster("rat", "r", hit_points=2, damage=1, position=(7, 7)),
+        Monster("rat", "r", hit_points=2, damage=1, position=(49, 15)),
+        Monster("rat", "r", hit_points=2, damage=1, position=(18, 18)),
+    ]

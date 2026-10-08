@@ -3,7 +3,7 @@ from helpers import game_on, level_from
 
 from dungeon_explorer.game import Game, Message
 from dungeon_explorer.generate import floor_count, generate_level
-from dungeon_explorer.level import Direction, Item, Point, Room
+from dungeon_explorer.level import Direction, Item, Monster, Point, Room
 
 POTION = Item("potion", "!")
 GOLD = Item("gold", "$")
@@ -382,3 +382,33 @@ def test_the_game_isnt_finished_until_the_last_floor():
 
     assert not game.finished
     assert "This is the last floor" not in str(game.log[-1])
+
+
+def _rat(position: Point) -> Monster:
+    return Monster("rat", "r", hit_points=2, damage=1, position=position)
+
+
+def test_a_monster_in_the_way_stops_the_player():
+    level = level_from("#####", "#...#", "#####", monsters=[_rat((2, 1))])
+    game = game_on(level, position=(1, 1))
+
+    game.move(Direction.EAST)
+
+    assert game.player.position == (1, 1)
+    assert str(game.log[-1]) == "A rat is in the way."
+
+
+def test_only_monsters_with_a_clear_line_to_the_player_are_in_sight():
+    seen, hidden = _rat((5, 1)), _rat((3, 3))
+    level = level_from(
+        "#######",
+        "#.....#",
+        "#.###.#",
+        "#.....#",
+        "#######",
+        monsters=[seen, hidden],
+    )
+
+    game = game_on(level, position=(3, 1))
+
+    assert game.monsters_in_sight() == [seen]

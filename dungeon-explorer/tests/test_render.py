@@ -1,7 +1,7 @@
 from helpers import game_on, level_from
 
 from dungeon_explorer.game import Game
-from dungeon_explorer.level import Item, Point
+from dungeon_explorer.level import Item, Monster, Point
 from dungeon_explorer.render import draw_mini_map, draw_view
 
 POTION = Item("potion", "!")
@@ -171,3 +171,69 @@ def test_the_full_mini_map_is_32_by_16_with_the_player_in_their_block():
     assert all(len(line) == 32 for line in lines)
     x, y = game.player.position
     assert lines[y // 2][x // 2] == "@"
+
+
+def _rat(position: Point) -> Monster:
+    return Monster("rat", "r", hit_points=2, damage=1, position=position)
+
+
+# A loop of floor round a block of wall, with a rat on each side of it.
+LOOP_ROWS = (
+    "#######",
+    "#.....#",
+    "#.###.#",
+    "#.....#",
+    "#######",
+)
+
+
+def test_the_view_draws_monsters_in_sight_and_hides_the_rest():
+    # A pillar of wall at (2, 2) hides the rat at (1, 2) from the player.
+    pillar = level_from(
+        "#######",
+        "#.....#",
+        "#.#...#",
+        "#.....#",
+        "#######",
+        monsters=[_rat((1, 2)), _rat((5, 2))],
+    )
+    game = game_on(pillar, position=(3, 2))
+    game.explored = _everywhere(7, 5)
+
+    assert draw_view(game, width=7, height=5) == [
+        "#######",
+        "#.....#",
+        "#.#@.r#",
+        "#.....#",
+        "#######",
+    ]
+
+
+def test_a_monster_in_sight_shows_before_its_tile_is_explored():
+    level = level_from(*LOOP_ROWS, monsters=[_rat((5, 1))])
+    game = game_on(level, position=(3, 1))
+    game.explored = {(3, 1)}
+
+    assert draw_view(game, width=7, height=3)[1] == "   @ r "
+
+
+def test_the_mini_map_shows_monsters_only_while_in_sight():
+    level = level_from(*LOOP_ROWS, monsters=[_rat((5, 1)), _rat((3, 3))])
+    game = game_on(level, position=(1, 1))
+    game.explored = _everywhere(7, 5)
+
+    # From (1, 1) the rat at (5, 1) is in sight, but the one at (3, 3) is
+    # behind the wall, so its block shows plain floor.
+    assert draw_mini_map(game) == [
+        "@.r#",
+        "...#",
+        "####",
+    ]
+
+
+def test_on_the_mini_map_a_monster_in_sight_beats_the_stairs():
+    level = level_from(*LOOP_ROWS, stairs_down=(5, 1), monsters=[_rat((4, 1))])
+    game = game_on(level, position=(1, 1))
+    game.explored = _everywhere(7, 5)
+
+    assert draw_mini_map(game)[0] == "@.r#"

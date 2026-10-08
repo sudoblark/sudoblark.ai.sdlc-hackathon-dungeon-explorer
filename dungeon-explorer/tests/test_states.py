@@ -4,7 +4,7 @@ import pytest
 from helpers import game_on, level_from
 
 from dungeon_explorer.game import Game
-from dungeon_explorer.generate import ITEMS, floor_count
+from dungeon_explorer.generate import ITEMS, MONSTERS, floor_count
 from dungeon_explorer.level import Item, Tile
 from dungeon_explorer.render import PLAYER, STAIRS_DOWN, draw_mini_map, draw_view
 from dungeon_explorer.states import (
@@ -45,7 +45,7 @@ def test_playing_draws_a_header_the_panels_with_a_legend_and_the_log():
     assert lines[1] == f"Level 1 of {floor_count(42)}   Seed 42"
     assert lines[2] == "+- View " + "-" * 24 + "+ +- Map " + "-" * 26 + "+"
     key = ["Key", "@ you", "# wall", ". floor", "> stairs"]
-    key += ["! potion", "$ gold", "? scroll", ") dagger"]
+    key += ["! potion", "$ gold", "? scroll", ") dagger", "r rat", "g goblin", "o orc"]
     # The view is 15 lines and the mini-map 16, so the view gets a blank line.
     for row in range(16):
         left = view[row] if row < len(view) else " " * 31
@@ -93,6 +93,7 @@ def test_the_legend_explains_every_symbol_the_playing_screen_can_show():
 
     assert {PLAYER, STAIRS_DOWN, Tile.WALL, Tile.FLOOR} <= glyphs
     assert {item.glyph for item in ITEMS} <= glyphs
+    assert {monster.glyph for monster, _ in MONSTERS} <= glyphs
 
 
 @pytest.mark.parametrize(

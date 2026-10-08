@@ -1,6 +1,7 @@
 import pytest
+from helpers import level_from
 
-from dungeon_explorer.level import Direction, Level, Room, Tile
+from dungeon_explorer.level import Direction, Level, Monster, Room, Tile
 
 
 @pytest.mark.parametrize(
@@ -85,3 +86,47 @@ def test_level_size_and_tiles_come_from_its_grid():
     assert level.height == 2
     assert level.tile(1, 1) is Tile.FLOOR
     assert level.tile(2, 0) is Tile.WALL
+
+
+# A loop of floor round a block of wall.
+LOOP = level_from(
+    "#######",
+    "#.....#",
+    "#.###.#",
+    "#.....#",
+    "#######",
+)
+
+
+@pytest.mark.parametrize(
+    ("a", "b"),
+    [
+        ((1, 1), (5, 1)),  # along a row of floor
+        ((1, 1), (1, 3)),  # down a column of floor
+        ((1, 1), (2, 1)),  # next to each other
+        ((1, 1), (1, 1)),  # the same tile
+    ],
+)
+def test_a_clear_line_of_floor_can_be_seen_along_both_ways(a, b):
+    assert LOOP.can_see(a, b)
+    assert LOOP.can_see(b, a)
+
+
+@pytest.mark.parametrize(
+    ("a", "b"),
+    [
+        ((3, 1), (3, 3)),  # straight through the block of wall
+        ((1, 1), (5, 3)),  # a slanting line that clips the wall
+    ],
+)
+def test_walls_block_sight_both_ways(a, b):
+    assert not LOOP.can_see(a, b)
+    assert not LOOP.can_see(b, a)
+
+
+def test_monster_at_finds_the_monster_on_a_tile():
+    rat = Monster("rat", "r", hit_points=2, damage=1, position=(2, 1))
+    level = level_from("#####", "#...#", "#####", monsters=[rat])
+
+    assert level.monster_at((2, 1)) is rat
+    assert level.monster_at((1, 1)) is None
