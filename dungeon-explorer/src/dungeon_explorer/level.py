@@ -30,12 +30,26 @@ class Room:
         """The first row past the room's floor."""
         return self.y + self.height
 
+    @property
+    def centre(self) -> tuple[int, int]:
+        """The middle floor tile, rounding right and down for even sizes."""
+        return (self.x + self.width // 2, self.y + self.height // 2)
+
     def tiles(self) -> list[tuple[int, int]]:
         """Every floor tile in the room, as (x, y), row by row."""
         return [
             (x, y)
             for y in range(self.y, self.bottom)
             for x in range(self.x, self.right)
+        ]
+
+    def walls(self) -> list[tuple[int, int]]:
+        """Every tile in the ring of wall around the room, corners included."""
+        return [
+            (x, y)
+            for y in range(self.y - 1, self.bottom + 1)
+            for x in range(self.x - 1, self.right + 1)
+            if not (self.x <= x < self.right and self.y <= y < self.bottom)
         ]
 
     def is_near(self, other: "Room", gap: int) -> bool:

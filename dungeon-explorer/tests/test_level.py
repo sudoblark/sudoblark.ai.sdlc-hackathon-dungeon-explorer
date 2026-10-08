@@ -10,10 +10,31 @@ def test_room_right_and_bottom_are_just_past_its_floor():
     assert room.bottom == 8
 
 
+@pytest.mark.parametrize(
+    ("room", "centre"),
+    [
+        (Room(x=2, y=3, width=5, height=3), (4, 4)),  # odd sizes: the middle
+        (Room(x=2, y=3, width=4, height=2), (4, 4)),  # even sizes: right and down
+    ],
+)
+def test_room_centre_is_its_middle_tile(room, centre):
+    assert room.centre == centre
+
+
 def test_room_tiles_cover_its_floor_row_by_row():
     room = Room(x=1, y=2, width=3, height=2)
 
     assert room.tiles() == [(1, 2), (2, 2), (3, 2), (1, 3), (2, 3), (3, 3)]
+
+
+def test_room_walls_ring_its_floor_including_corners():
+    room = Room(x=1, y=1, width=2, height=1)
+
+    assert room.walls() == [
+        (0, 0), (1, 0), (2, 0), (3, 0),
+        (0, 1),                 (3, 1),
+        (0, 2), (1, 2), (2, 2), (3, 2),
+    ]  # fmt: skip
 
 
 @pytest.mark.parametrize(
