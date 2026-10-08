@@ -9,6 +9,7 @@ The game opens on the title screen. The screens of a game in play hold the
 title screen too, so they can go back to it when the game ends.
 """
 
+import textwrap
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -56,12 +57,15 @@ class TitleState(State):
 
     `seed` is the one given on the command line, if any, which fills in the
     seed screen. `random_seed` picks a seed when the player leaves it blank.
+    `warnings` are mistakes found in the settings file, shown under the menu
+    because the title screen clears anything printed before it.
     """
 
     seed: int | None
     random_seed: Callable[[], int]
     choice: int = 0
     settings: Settings = DEFAULT_SETTINGS
+    warnings: tuple[str, ...] = ()
 
     OPTIONS = ("New game", "Exit")
 
@@ -70,7 +74,7 @@ class TitleState(State):
             f"  > {option} <" if row == self.choice else f"    {option}"
             for row, option in enumerate(self.OPTIONS)
         ]
-        return [
+        lines = [
             "+" + "-" * 30 + "+",
             "|" + TITLE.center(30) + "|",
             "+" + "-" * 30 + "+",
@@ -79,6 +83,19 @@ class TitleState(State):
             "",
             "w/s to choose, Enter to pick",
         ]
+        if self.warnings:
+            lines += ["", "Problems with the settings file:"]
+            for warning in self.warnings:
+                # Never split a file path, which can be longer than the screen.
+                lines += textwrap.wrap(
+                    warning,
+                    width=76,
+                    initial_indent="  ",
+                    subsequent_indent="    ",
+                    break_on_hyphens=False,
+                    break_long_words=False,
+                )
+        return lines
 
     def handle(self, text: str) -> State | None:
         key = text.strip().lower()
@@ -169,7 +186,8 @@ class PlayingState(_InGameState):
         log_lines = game.settings.log_lines
         newest = [str(message) for message in game.log[-log_lines:]]
         return [
-            TITLE + MENU.rjust(width - len(TITLE)),
+            # The menu sits at the panels' right edge, but never touches the title.
+            TITLE + MENU.rjust(max(width - len(TITLE), len(MENU) + 2)),
             f"Level {game.depth} of {game.floors}   Seed {game.seed}"
             f"   HP {game.player.hit_points}/{PLAYER_HIT_POINTS}",
             *beside,

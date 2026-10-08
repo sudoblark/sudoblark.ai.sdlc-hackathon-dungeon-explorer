@@ -440,3 +440,26 @@ def test_items_and_monsters_come_from_the_settings():
 
     assert set(level.items.values()) == {gem}
     assert {monster.name for monster in level.monsters} == {"bat"}
+
+
+def test_with_only_one_room_the_stairs_go_in_it_away_from_the_start():
+    one_room = Settings(max_rooms=1)
+
+    level = generate_level(42, depth=1, settings=one_room)
+
+    assert len(level.rooms) == 1
+    assert level.stairs_down in level.rooms[0].tiles()
+    assert level.stairs_down != level.player_start
+    assert level.monsters == []
+
+
+def test_a_floor_where_no_kind_can_turn_up_gets_none():
+    deep_only = Settings(
+        items=((Item("gem", "*"), 3),),
+        monsters=((Monster("bat", "b", hit_points=1, damage=1), 3),),
+    )
+
+    level = generate_level(42, depth=1, settings=deep_only)
+
+    assert level.items == {}
+    assert level.monsters == []

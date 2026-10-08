@@ -78,9 +78,14 @@ def _place_rooms(rng: random.Random, settings: Settings) -> list[Room]:
 
 
 def _place_stairs_down(rng: random.Random, rooms: list[Room]) -> Point:
-    """A random floor tile in any room but the first, where the player starts."""
-    room = rng.choice(rooms[1:])
-    return rng.choice(room.tiles())
+    """A random floor tile in any room but the first, where the player starts.
+
+    If settings leave only one room, the stairs go there, away from the start.
+    """
+    if len(rooms) > 1:
+        return rng.choice(rng.choice(rooms[1:]).tiles())
+    start = rooms[0].centre
+    return rng.choice([tile for tile in rooms[0].tiles() if tile != start])
 
 
 def _place_items(
@@ -93,8 +98,10 @@ def _place_items(
     """Scatter a few random items on room floors, one to a tile, off `taken`
     tiles, from the kinds that can turn up this deep."""
     floor = [tile for room in rooms for tile in room.tiles() if tile not in taken]
-    count = rng.randint(*settings.items_per_level)
+    count = min(rng.randint(*settings.items_per_level), len(floor))
     kinds = [kind for kind, first_floor in settings.items if first_floor <= depth]
+    if not kinds:
+        return {}
     return {tile: rng.choice(kinds) for tile in rng.sample(floor, count)}
 
 
@@ -111,6 +118,8 @@ def _place_monsters(
     fewest, most = (count + depth - 1 for count in settings.monsters_per_floor)
     count = min(rng.randint(fewest, most), len(floor))
     kinds = [kind for kind, first_floor in settings.monsters if first_floor <= depth]
+    if not kinds:
+        return []
     return [
         replace(rng.choice(kinds), position=tile) for tile in rng.sample(floor, count)
     ]

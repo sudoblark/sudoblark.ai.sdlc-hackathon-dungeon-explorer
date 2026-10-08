@@ -13,7 +13,9 @@ import os
 import random
 import sys
 from collections.abc import Callable
+from pathlib import Path
 
+from dungeon_explorer.settings import load_settings
 from dungeon_explorer.states import State, TitleState
 
 PROMPT = "> "
@@ -22,6 +24,8 @@ PROMPT = "> "
 CLEAR_SCREEN = "\033[2J\033[H"
 # Seeds picked for you stay short enough to type back in.
 RANDOM_SEEDS = 1_000_000
+# Read from the folder the game runs in, unless --settings names another file.
+SETTINGS_FILE = Path("settings.toml")
 
 
 def game_loop(
@@ -63,8 +67,21 @@ def main(argv: list[str] | None = None) -> int:
         help="fill in the seed for a new game; the same seed always gives the "
         "same dungeon (default: a random one, shown on screen)",
     )
+    parser.add_argument(
+        "--settings",
+        type=Path,
+        help=f"the settings file to play with (default: {SETTINGS_FILE}, if there "
+        "is one; otherwise the built-in settings)",
+    )
     args = parser.parse_args(argv)
-    title = TitleState(args.seed, lambda: random.randrange(RANDOM_SEEDS))
+    path = args.settings or SETTINGS_FILE
+    settings, warnings = load_settings(path, required=args.settings is not None)
+    title = TitleState(
+        args.seed,
+        lambda: random.randrange(RANDOM_SEEDS),
+        settings=settings,
+        warnings=tuple(warnings),
+    )
     try:
         read = read_key if sys.stdin.isatty() else input
         game_loop(title, read, print, clear=sys.stdout.isatty())

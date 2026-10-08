@@ -639,3 +639,33 @@ def test_a_new_game_from_the_seed_screen_uses_the_title_screens_settings():
 
     assert playing.game.settings is settings
     assert playing.game.floors == 2
+
+
+def test_the_title_screen_lists_problems_with_the_settings_file():
+    long = (
+        "[dungeon] min_floors (8) is more than max_floors (7), so the whole"
+        " table uses the defaults"
+    )
+    title = TitleState(None, lambda: 1, warnings=("[level] has no key 'w'", long))
+
+    assert title.draw()[8:] == [
+        "",
+        "Problems with the settings file:",
+        "  [level] has no key 'w'",
+        "  [dungeon] min_floors (8) is more than max_floors (7), so the whole table",
+        "    uses the defaults",
+    ]
+
+
+def test_the_title_screen_has_no_problems_section_without_warnings():
+    assert "Problems with the settings file:" not in _title().draw()
+
+
+def test_the_header_keeps_the_title_and_menu_apart_on_a_narrow_view():
+    game = Game.new(seed=42, settings=Settings(view_width=5))
+
+    header = PlayingState(game).draw()[0]
+
+    assert (
+        header == "DUNGEON EXPLORER  i items  p drink  l log  c clear  ? help  q leave"
+    )

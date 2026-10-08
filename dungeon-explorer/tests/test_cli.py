@@ -240,3 +240,40 @@ def test_dying_ends_the_loop_on_the_game_over_screen():
     assert drawn[1].startswith("You died.")
     assert drawn[-1] == "Goodbye! You died on level 1 of seed 1."
     assert len(drawn) == 3  # playing, game over, goodbye
+
+
+def test_the_command_plays_with_the_settings_file_it_is_given(
+    monkeypatch, capsys, tmp_path
+):
+    mine = tmp_path / "mine.toml"
+    mine.write_text("[dungeon]\nmin_floors = 2\nmax_floors = 2\n")
+    argv = ["--seed", "42", "--settings", str(mine)]
+
+    _, out = _play(monkeypatch, capsys, argv, *START, *LEAVE, *EXIT)
+
+    assert "Level 1 of 2   Seed 42   HP 20/20" in out.splitlines()
+
+
+def test_settings_toml_in_the_folder_is_read_without_asking(
+    monkeypatch, capsys, tmp_path
+):
+    (tmp_path / "settings.toml").write_text(
+        "[dungeon]\nmin_floors = 2\nmax_floors = 2\n"
+    )
+    monkeypatch.chdir(tmp_path)
+
+    _, out = _play(monkeypatch, capsys, ["--seed", "42"], *START, *LEAVE, *EXIT)
+
+    assert "Level 1 of 2   Seed 42   HP 20/20" in out.splitlines()
+
+
+def test_problems_with_the_settings_show_on_the_title_screen(
+    monkeypatch, capsys, tmp_path
+):
+    missing = tmp_path / "missing.toml"
+
+    _, out = _play(monkeypatch, capsys, ["--settings", str(missing)], *EXIT)
+
+    assert "Problems with the settings file:" in out
+    # The path may be long enough to wrap, but it's never split.
+    assert f"{missing} doesn't exist" in " ".join(out.split())

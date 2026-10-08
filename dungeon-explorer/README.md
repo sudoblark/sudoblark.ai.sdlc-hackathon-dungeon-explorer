@@ -51,6 +51,16 @@ The left panel shows the area around you, and the right panel is a mini-map of t
 | `)` `/` `\` | A dagger, a sword or an axe, doing 2, 3 or 4 damage. You fight with the best one you carry, or your fists for 1, and stronger ones only turn up deeper. |
 | `r` `g` `o` | A rat, a goblin or an orc. Monsters only show while you can see them, and while they can see you, they come after you, a step for each of yours. Once one is next to you, it attacks instead, for 1, 2 or 3 damage. Deeper floors have more of them, and tougher ones. |
 
+## Settings
+
+The game reads [settings.toml](settings.toml) from the folder it runs in. It sets the number of floors, the size of each level and its rooms, how many items and monsters turn up, every kind of item and monster, the size of the view and the number of log lines. Every value in it is the default, with a comment explaining it, so change what you like or delete what you don't need. To play with another file:
+
+```bash
+uv run dungeon-explorer --settings hard.toml
+```
+
+A mistake in the file, such as a misspelt key or a number that's too small, is listed on the title screen, and that value keeps its default, so the game always starts.
+
 ## Running the checks
 
 ```bash

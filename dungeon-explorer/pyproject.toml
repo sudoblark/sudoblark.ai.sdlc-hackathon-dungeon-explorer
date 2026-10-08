@@ -7,7 +7,9 @@ authors = [
     { name = "Benjamin Clark", email = "bclark@sudoblark.com" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "pydantic>=2.13.5",
+]
 
 [project.scripts]
 dungeon-explorer = "dungeon_explorer.cli:main"
