@@ -39,7 +39,7 @@ LEGEND = [
     (Tile.WALL, "wall"),
     (Tile.FLOOR, "floor"),
     (STAIRS_DOWN, "stairs"),
-    *((item.glyph, item.name) for item in ITEMS),
+    *((item.glyph, item.name) for item, _ in ITEMS),
     *((monster.glyph, monster.name) for monster, _ in MONSTERS),
 ]
 
@@ -211,8 +211,13 @@ class InventoryState(_InGameState):
     """What the player is carrying, in the order they picked it up."""
 
     def draw(self) -> list[str]:
-        inventory = self.game.player.inventory
-        items = [f"  {item.glyph} {item.name}" for item in inventory]
+        player = self.game.player
+        # The weapon in hand is the first of the strongest kind carried.
+        in_hand = player.inventory.index(player.weapon) if player.weapon else None
+        items = [
+            f"  {item.glyph} {item.name}" + ("   (in hand)" if row == in_hand else "")
+            for row, item in enumerate(player.inventory)
+        ]
         return [
             "Inventory",
             "",

@@ -20,11 +20,15 @@ ROOM_GAP = 2
 # A bend in a corridor costs as much as this many steps, so corridors take a
 # short detour rather than zigzag.
 BEND_COST = 4
+# Each kind of item, and the first floor it can turn up on. Stronger
+# weapons only turn up deeper.
 ITEMS = (
-    Item("potion", "!"),
-    Item("gold", "$"),
-    Item("scroll", "?"),
-    Item("dagger", ")"),
+    (Item("potion", "!"), 1),
+    (Item("gold", "$"), 1),
+    (Item("scroll", "?"), 1),
+    (Item("dagger", ")", damage=2), 1),
+    (Item("sword", "/", damage=3), 2),
+    (Item("axe", "\\", damage=4), 4),
 )
 ITEMS_PER_LEVEL = (3, 6)
 # Each kind of monster, and the first floor it can turn up on.
@@ -66,7 +70,8 @@ def generate_level(seed: int, depth: int) -> Level:
     stairs_down = _place_stairs_down(rng, rooms)
     # Nothing goes on the eight tiles around the stairs, so they stand alone
     # in the view and never share a block on the mini-map.
-    items = _place_items(rng, rooms, taken={player_start, *_around(stairs_down)})
+    taken = {player_start, *_around(stairs_down)}
+    items = _place_items(rng, rooms, depth, taken)
     monsters = _place_monsters(rng, rooms, depth, taken={stairs_down, *items})
     return Level(
         tiles=tiles,
@@ -102,12 +107,14 @@ def _place_stairs_down(rng: random.Random, rooms: list[Room]) -> Point:
 
 
 def _place_items(
-    rng: random.Random, rooms: list[Room], taken: set[Point]
+    rng: random.Random, rooms: list[Room], depth: int, taken: set[Point]
 ) -> dict[Point, Item]:
-    """Scatter a few random items on room floors, one to a tile, off `taken` tiles."""
+    """Scatter a few random items on room floors, one to a tile, off `taken`
+    tiles, from the kinds that can turn up this deep."""
     floor = [tile for room in rooms for tile in room.tiles() if tile not in taken]
     count = rng.randint(*ITEMS_PER_LEVEL)
-    return {tile: rng.choice(ITEMS) for tile in rng.sample(floor, count)}
+    kinds = [kind for kind, first_floor in ITEMS if first_floor <= depth]
+    return {tile: rng.choice(kinds) for tile in rng.sample(floor, count)}
 
 
 def _place_monsters(

@@ -1,7 +1,7 @@
 import pytest
 from helpers import game_on, level_from
 
-from dungeon_explorer.game import Game, Message
+from dungeon_explorer.game import Game, Message, Player
 from dungeon_explorer.generate import floor_count, generate_level
 from dungeon_explorer.level import Direction, Item, Monster, Point, Room
 
@@ -388,14 +388,88 @@ def _rat(position: Point) -> Monster:
     return Monster("rat", "r", hit_points=2, damage=1, position=position)
 
 
-def test_a_monster_in_the_way_stops_the_player():
-    level = level_from("#####", "#...#", "#####", monsters=[_rat((2, 1))])
-    game = game_on(level, position=(1, 1))
+DAGGER = Item("dagger", ")", damage=2)
+SWORD = Item("sword", "/", damage=3)
+CORRIDOR = ("#####", "#...#", "#####")
+
+
+def test_walking_into_a_monster_attacks_it_instead_of_moving():
+    goblin = _goblin((2, 1))
+    game = game_on(level_from(*CORRIDOR, monsters=[goblin]), position=(1, 1))
 
     game.move(Direction.EAST)
 
     assert game.player.position == (1, 1)
-    assert str(game.log[-1]) == "A rat is in the way."
+    assert goblin.hit_points == 3
+    assert str(game.log[-1]) == "You hit the goblin with your fists."
+
+
+def test_a_weapon_hits_for_its_damage():
+    goblin = _goblin((2, 1))
+    game = game_on(level_from(*CORRIDOR, monsters=[goblin]), position=(1, 1))
+    game.player.inventory = [DAGGER]
+
+    game.move(Direction.EAST)
+
+    assert goblin.hit_points == 2
+    assert str(game.log[-1]) == "You hit the goblin with your dagger."
+
+
+def test_a_monster_dies_when_its_hit_points_run_out():
+    rat = _rat((2, 1))
+    game = game_on(level_from(*CORRIDOR, monsters=[rat]), position=(1, 1))
+    game.player.inventory = [DAGGER]
+
+    game.move(Direction.EAST)
+
+    assert game.level.monsters == []
+    assert str(game.log[-1]) == "You kill the rat with your dagger."
+    game.move(Direction.EAST)
+    assert game.player.position == (2, 1)
+
+
+def test_hitting_again_is_counted_in_the_log():
+    goblin = _goblin((2, 1))
+    game = game_on(level_from(*CORRIDOR, monsters=[goblin]), position=(1, 1))
+
+    for _ in range(3):
+        game.move(Direction.EAST)
+
+    assert str(game.log[-1]) == "You hit the goblin with your fists. (x3)"
+
+
+def test_the_player_fights_with_the_strongest_weapon_carried():
+    player = Player((0, 0), inventory=[DAGGER, POTION, SWORD])
+
+    assert player.weapon == SWORD
+    assert player.damage == 3
+
+
+def test_without_a_weapon_the_player_punches_for_one():
+    player = Player((0, 0), inventory=[POTION])
+
+    assert player.weapon is None
+    assert player.damage == 1
+
+
+def test_picking_up_a_better_weapon_puts_it_in_hand():
+    level = level_from(*CORRIDOR, items={(2, 1): SWORD})
+    game = game_on(level, position=(1, 1))
+    game.player.inventory = [DAGGER]
+
+    game.move(Direction.EAST)
+
+    assert game.player.weapon == SWORD
+
+
+def test_an_attack_is_a_turn_so_other_monsters_close_in():
+    goblin, rat = _goblin((2, 2)), _rat((6, 2))
+    level = level_from(*OPEN_ROOM, monsters=[goblin, rat])
+    game = game_on(level, position=(1, 2))
+
+    game.move(Direction.EAST)
+
+    assert rat.position == (5, 2)
 
 
 def test_only_monsters_with_a_clear_line_to_the_player_are_in_sight():

@@ -30,7 +30,7 @@ In a game, press a key; there's no need to press Enter:
 
 | Key | What it does |
 | --- | --- |
-| `w` `a` `s` `d` | Move one step north, west, south or east |
+| `w` `a` `s` `d` | Move one step north, west, south or east, or attack a monster in the way |
 | `>` | Go down the stairs, when you're standing on them |
 | `i` | Look at your inventory |
 | `l` | Read every message so far, scrolling with `w` and `s` |
@@ -46,7 +46,8 @@ The left panel shows the area around you, and the right panel is a mini-map of t
 | `#` | Wall |
 | `.` | Floor |
 | `>` | Stairs down |
-| `!` `$` `?` `)` | A potion, gold, a scroll or a dagger |
+| `!` `$` `?` | A potion, gold or a scroll |
+| `)` `/` `\` | A dagger, a sword or an axe, doing 2, 3 or 4 damage. You fight with the best one you carry, or your fists for 1, and stronger ones only turn up deeper. |
 | `r` `g` `o` | A rat, a goblin or an orc. Monsters only show while you can see them, and while they can see you, they come after you, a step for each of yours. Deeper floors have more of them, and tougher ones. |
 
 ## Running the checks

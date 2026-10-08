@@ -193,7 +193,8 @@ def test_a_few_items_lie_on_room_floors(seed):
     low, high = ITEMS_PER_LEVEL
     assert low <= len(level.items) <= high
     assert set(level.items) <= _room_floor(level)
-    assert all(item in ITEMS for item in level.items.values())
+    kinds = [kind for kind, _ in ITEMS]
+    assert all(item in kinds for item in level.items.values())
 
 
 @pytest.mark.parametrize("seed", SEEDS)
@@ -294,7 +295,7 @@ def test_the_same_seed_gives_the_same_start_stairs_and_items_in_every_run():
     assert level.items == {
         (43, 13): Item("potion", "!"),
         (48, 15): Item("potion", "!"),
-        (15, 16): Item("dagger", ")"),
+        (15, 16): Item("dagger", ")", damage=2),
         (41, 14): Item("potion", "!"),
         (44, 24): Item("scroll", "?"),
         (46, 26): Item("potion", "!"),
@@ -377,3 +378,28 @@ def test_the_same_seed_gives_the_same_monsters_in_every_run():
         Monster("rat", "r", hit_points=2, damage=1, position=(49, 15)),
         Monster("rat", "r", hit_points=2, damage=1, position=(18, 18)),
     ]
+
+
+@pytest.mark.parametrize("depth", [1, 2, 3, 4, 5])
+def test_stronger_weapons_only_turn_up_deeper(depth):
+    allowed = {kind.name for kind, first_floor in ITEMS if first_floor <= depth}
+
+    found = {i.name for seed in DEPTH_SEEDS for i in _level(seed, depth).items.values()}
+
+    assert found <= allowed
+
+
+def test_every_kind_of_item_turns_up_somewhere_deep_enough():
+    deepest = max(first_floor for _, first_floor in ITEMS)
+
+    found = {
+        item.name for seed in range(30) for item in _level(seed, deepest).items.values()
+    }
+
+    assert found == {kind.name for kind, _ in ITEMS}
+
+
+def test_only_weapons_do_damage():
+    weapons = {kind.name: kind.damage for kind, _ in ITEMS if kind.damage}
+
+    assert weapons == {"dagger": 2, "sword": 3, "axe": 4}

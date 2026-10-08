@@ -45,7 +45,8 @@ def test_playing_draws_a_header_the_panels_with_a_legend_and_the_log():
     assert lines[1] == f"Level 1 of {floor_count(42)}   Seed 42"
     assert lines[2] == "+- View " + "-" * 24 + "+ +- Map " + "-" * 26 + "+"
     key = ["Key", "@ you", "# wall", ". floor", "> stairs"]
-    key += ["! potion", "$ gold", "? scroll", ") dagger", "r rat", "g goblin", "o orc"]
+    key += ["! potion", "$ gold", "? scroll", ") dagger", "/ sword", "\\ axe"]
+    key += ["r rat", "g goblin", "o orc"]
     # The view is 15 lines and the mini-map 16, so the view gets a blank line.
     for row in range(16):
         left = view[row] if row < len(view) else " " * 31
@@ -92,7 +93,7 @@ def test_the_legend_explains_every_symbol_the_playing_screen_can_show():
     glyphs = {glyph for glyph, _ in LEGEND}
 
     assert {PLAYER, STAIRS_DOWN, Tile.WALL, Tile.FLOOR} <= glyphs
-    assert {item.glyph for item in ITEMS} <= glyphs
+    assert {item.glyph for item, _ in ITEMS} <= glyphs
     assert {monster.glyph for monster, _ in MONSTERS} <= glyphs
 
 
@@ -524,3 +525,19 @@ def test_the_win_screen_goes_back_to_the_title_screen():
     title = _title()
 
     assert WinState(_on_the_last_stairs(seed=1), title).handle("x") is title
+
+
+DAGGER = Item("dagger", ")", damage=2)
+SWORD = Item("sword", "/", damage=3)
+
+
+def test_the_inventory_marks_the_weapon_in_hand():
+    game = game_on(ROOM, position=(2, 2))
+    game.player.inventory = [DAGGER, POTION, SWORD, SWORD]
+
+    assert InventoryState(game).draw()[2:6] == [
+        "  ) dagger",
+        "  ! potion",
+        "  / sword   (in hand)",
+        "  / sword",
+    ]

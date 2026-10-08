@@ -86,10 +86,14 @@ class Room:
 
 @dataclass(frozen=True)
 class Item:
-    """Something the player can pick up. Its glyph is how it's drawn."""
+    """Something the player can pick up. Its glyph is how it's drawn.
+
+    A weapon does `damage` to whatever it hits. Anything else does none.
+    """
 
     name: str
     glyph: str
+    damage: int = 0
 
 
 @dataclass

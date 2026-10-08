@@ -6,6 +6,9 @@ from typing import Self
 from dungeon_explorer.generate import floor_count, generate_level
 from dungeon_explorer.level import Direction, Item, Level, Monster, Point, Tile
 
+# What the player hits with when they carry no weapon.
+FIST_DAMAGE = 1
+
 
 @dataclass
 class Player:
@@ -16,6 +19,17 @@ class Player:
 
     position: Point
     inventory: list[Item] = field(default_factory=list)
+
+    @property
+    def weapon(self) -> Item | None:
+        """The strongest weapon carried, which is the one the player fights with."""
+        weapons = [item for item in self.inventory if item.damage > 0]
+        return max(weapons, key=lambda item: item.damage, default=None)
+
+    @property
+    def damage(self) -> int:
+        """How much each hit does: the weapon's damage, or a punch's."""
+        return self.weapon.damage if self.weapon else FIST_DAMAGE
 
 
 @dataclass
@@ -61,11 +75,11 @@ class Game:
         return cls(seed=seed, level=level, player=Player(level.player_start))
 
     def move(self, direction: Direction) -> None:
-        """Step the player one tile, unless a wall or a monster is in the way.
+        """Step the player one tile, or attack the monster standing there.
 
         Anything on the tile they step onto goes into their inventory. A step
-        is a turn, so the monsters then take theirs. Bumping into something
-        isn't, so a slip of the finger never lets them close in.
+        or an attack is a turn, so the monsters then take theirs. Bumping into
+        a wall isn't, so a slip of the finger never lets them close in.
         """
         target = direction.step_from(self.player.position)
         if not self._is_floor(target):
@@ -73,11 +87,11 @@ class Game:
             return
         monster = self.level.monster_at(target)
         if monster is not None:
-            self.say(f"A {monster.name} is in the way.")
-            return
-        self.player.position = target
-        self._pick_up()
-        self._explore()
+            self._attack(monster)
+        else:
+            self.player.position = target
+            self._pick_up()
+            self._explore()
         self._monsters_act()
 
     def descend(self) -> None:
@@ -119,6 +133,18 @@ class Game:
 
     def clear_log(self) -> None:
         self.log.clear()
+
+    def _attack(self, monster: Monster) -> None:
+        """Hit `monster` with the player's weapon, or fists, removing it once
+        its hit points run out."""
+        weapon = self.player.weapon
+        hit_with = weapon.name if weapon else "fists"
+        monster.hit_points -= self.player.damage
+        if monster.hit_points > 0:
+            self.say(f"You hit the {monster.name} with your {hit_with}.")
+            return
+        self.level.monsters = [m for m in self.level.monsters if m is not monster]
+        self.say(f"You kill the {monster.name} with your {hit_with}.")
 
     def _monsters_act(self) -> None:
         """Each monster that can see the player steps one tile towards them."""
