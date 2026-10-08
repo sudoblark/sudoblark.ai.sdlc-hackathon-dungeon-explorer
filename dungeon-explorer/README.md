@@ -18,7 +18,7 @@ Start the game from this folder:
 uv run dungeon-explorer
 ```
 
-It opens on a title screen: `w` and `s` move between New game and Exit, and Enter picks one. New game asks for a seed. Type one and press Enter to play that dungeon, or leave it blank for a random one. Either way, the seed is shown at the top of the screen, so you can play the same dungeon again. To have a seed filled in for you, start with one:
+The game sits in the middle of your terminal, and moves back to the middle if you resize it. It opens on a title screen: `w` and `s` move between New game and Exit, and Enter picks one. New game asks for a seed. Type one and press Enter to play that dungeon, or leave it blank for a random one. Either way, the seed is shown at the top of the screen, so you can play the same dungeon again. To have a seed filled in for you, start with one:
 
 ```bash
 uv run dungeon-explorer --seed 42

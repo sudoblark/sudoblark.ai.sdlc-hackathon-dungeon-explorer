@@ -52,7 +52,7 @@ A turn-based dungeon explorer drawn in ASCII in the terminal. Each level is gene
 
 ### Stretch goals
 
-Rows 15 to 31 are stretch goals, added once every acceptance criterion was met.
+Rows 15 to 35 are stretch goals, added once every acceptance criterion was met.
 
 | # | Commit message | What it covers | Status |
 | --- | --- | --- | --- |
@@ -72,7 +72,11 @@ Rows 15 to 31 are stretch goals, added once every acceptance criterion was met.
 | 28 | `refactor(settings): gather the settings into one object (TKT-05)` | A frozen `Settings` holding everything a settings file will be able to change, with today's values as its defaults: the level size, rooms, items, monsters (with their hit points and damage), the fewest and most floors, the view size and the number of log lines. It's passed through generation, the game, rendering and the screens instead of each reading its own constants. No change in behaviour; the person split this out of reading TOML so each commit can be reviewed on its own. Tests: the defaults match today's values, and a game made with other settings uses them. | ✅ |
 | 29 | `feat(settings): read the game's settings from a TOML file (TKT-05)` | `settings.toml` in the folder the game runs from, or the file `--settings` names, read with `tomllib`. The person chose `[dungeon]`, `[level]` and `[screen]` tables and a `[[items]]` or `[[monsters]]` block for each kind; a file sets only the keys it wants changed, and giving any `[[items]]` or `[[monsters]]` replaces that list. A shipped `settings.toml` writes out every default. A mistake, such as an unknown key, a wrong type or more min floors than max, gives a warning and the default for that value, which the person chose over refusing to start. The person chose showing warnings under the title screen's menu, since the title screen clears anything printed before it, and checking the file with Pydantic models over hand-written checks. Tests: the defaults, overriding a setting, the shipped file matching the defaults, and each kind of mistake falling back with a warning. | ✅ |
 | 30 | `feat(settings): show which settings a seed was played with (TKT-05)` | A short fingerprint of the settings beside the seed, on screen and in the goodbye line, so a replay can tell it has the same settings. Tests: the same settings give the same fingerprint, and any change gives a different one. | ✅ |
-| 31 | `feat(settings): share settings as a code to paste (TKT-05)` | A settings code holding only the values that differ from the defaults, in the settings file's shape, as compact JSON compressed with zlib and encoded as URL-safe base64. The win and game over screens and the goodbyes that name a seed show it when the settings aren't the defaults, and `--settings-code CODE` plays with those settings instead of a file. A code goes through the same checks as a file, so a mangled one warns on the title screen and falls back to the defaults. The person asked for this because a fingerprint can't recreate the settings it came from. Tests: a code gives back the same settings and fingerprint, the defaults have no code, a mangled code warns, and `--settings-code` plays the settings. | |
+| 31 | `feat(settings): share settings as a code to paste (TKT-05)` | A settings code holding only the values that differ from the defaults, in the settings file's shape, as compact JSON compressed with zlib and encoded as URL-safe base64. The win and game over screens and the goodbyes that name a seed show it when the settings aren't the defaults, and `--settings-code CODE` plays with those settings instead of a file. A code goes through the same checks as a file, so a mangled one warns on the title screen and falls back to the defaults. The person asked for this because a fingerprint can't recreate the settings it came from. Tests: a code gives back the same settings and fingerprint, the defaults have no code, a mangled code warns, and `--settings-code` plays the settings. | ✅ |
+| 32 | `feat(cli): centre the screen in the terminal (TKT-05)` | In a terminal, every screen is drawn in the middle, as one block so its lines stay lined up, across and down. The terminal is measured each turn, so resizing it re-centres the screen, and a screen bigger than the terminal stays in the top left. Piped output isn't padded, so scripted runs and the tests are unchanged. The person asked for this while play-testing, before the ticket closed. Tests: centring in a bigger terminal, lines staying lined up, blank lines staying empty, a screen too big to centre, and the loop centring only when given a terminal size. | |
+| 33 | `feat(cli): hide the cursor while playing (TKT-05)` | In a terminal, the blinking cursor is hidden while the game runs, and always shown again when it ends, including after Ctrl-C or an error, so the terminal is never left without one. The person asked for this after play-testing row 32. Tests: hidden at the start and shown at the end, shown again after an interruption or an error, and left alone when output is piped. | |
+| 34 | `feat(states): frame the playing screen in labelled panels (TKT-05)` | The playing screen sits inside one outer edge: a banner with the title on its own at the top, the status line, then View, Map and Key panels sharing their borders, a Messages panel, and a menu bar at the bottom, 77 columns wide and 28 tall. The person chose this full grid over fitting the title and menu into the edge to keep within 24 rows, so the title stands apart from the game. Tests: the exact layout, every panel labelled, the width within 80 columns, and the panels following the view size and number of log lines in the settings. | |
+| 35 | `feat(states): frame the other screens to match (TKT-05)` | The new game (seed), items, help, log, leave, win and game over screens get the same edge: the title banner, a panel labelled with the screen's name, and a bar at the bottom for their keys. The title screen stays as it is, which the person likes. Tests: each screen inside the edge with its label, and its contents unchanged. | |
 
 ## Post-commit testing
 
@@ -88,21 +92,25 @@ Rows 15 to 31 are stretch goals, added once every acceptance criterion was met.
 
 ### Stretch goals
 
-Checks 8 to 18 test the stretch goals, once rows 15 to 31 have landed.
+Checks 8 to 22 test the stretch goals, once rows 15 to 35 have landed.
 
 | # | Check | How | Status |
 | --- | --- | --- | --- |
-| 8 | Keys act without Enter in a terminal | Run `uv run dungeon-explorer --seed 42` in a terminal. `w` `a` `s` `d` move straight away, `i` and `?` open their screens, any key goes back, and Ctrl-C quits cleanly. Piped input, as in check 3, still works. | |
-| 9 | The playing screen has a header and legend | The title shows at the top, every symbol on screen is in the legend, and the screen fits an 80-column terminal. | |
-| 10 | The message log keeps and clears messages | Walk into a wall, then pick something up: both messages stay on screen, newest last. The clear key empties the log. | |
-| 11 | The title screen starts and exits games | The game opens on the title. New Game starts a game, and Exit quits. With `--seed 42`, the new game is seed 42, and typing a seed on New Game plays that seed instead. | |
-| 12 | The dungeon can be finished | The status shows `Level 1 of N`, where N is between the minimum and maximum and is the same every time for a seed. Arriving on the last floor says its stairs lead out, and going down them shows the win screen, then the title. | |
-| 13 | Monsters appear and chase | Monsters only show when they're in sight, and step towards the player when they can see them. Out of sight, they stay put. | |
-| 14 | Monsters can be fought | Walking into a monster hits it, and enough hits kill it. | |
-| 15 | Monsters hurt back, and the game can be lost | Standing next to a monster costs hit points, shown on the status line. At zero, the game over screen shows, then the title. | |
-| 16 | Potions heal | Pick up a potion, take some hits, then press `p`: hit points go up by 5, never past the most, and the potion leaves the inventory. With no potions, `p` says so. | |
-| 17 | Settings change the game | Changing a setting in the TOML file, such as fewer floors or a smaller level, changes the game, and the fingerprint beside the seed changes with it. A mistake in the file warns and falls back to the default for that value. The settings code on the win or game over screen replays the same settings with `--settings-code`, with the same fingerprint. | |
-| 18 | The original checks still hold | Re-run checks 1 to 3 on the finished stretch goals, with input that starts a game from the title screen first. | |
+| 8 | Keys act without Enter in a terminal | Run `uv run dungeon-explorer --seed 42` in a terminal. `w` `a` `s` `d` move straight away, `i` and `?` open their screens, any key goes back, and Ctrl-C quits cleanly. Piped input, as in check 3, still works. | ✅ |
+| 9 | The playing screen has a header and legend | The title shows at the top, every symbol on screen is in the legend, and the screen fits an 80-column terminal. | ✅ |
+| 10 | The message log keeps and clears messages | Walk into a wall, then pick something up: both messages stay on screen, newest last. The clear key empties the log. | ✅ |
+| 11 | The title screen starts and exits games | The game opens on the title. New Game starts a game, and Exit quits. With `--seed 42`, the new game is seed 42, and typing a seed on New Game plays that seed instead. | ✅ |
+| 12 | The dungeon can be finished | The status shows `Level 1 of N`, where N is between the minimum and maximum and is the same every time for a seed. Arriving on the last floor says its stairs lead out, and going down them shows the win screen, then the title. | ✅ |
+| 13 | Monsters appear and chase | Monsters only show when they're in sight, and step towards the player when they can see them. Out of sight, they stay put. | ✅ |
+| 14 | Monsters can be fought | Walking into a monster hits it, and enough hits kill it. | ✅ |
+| 15 | Monsters hurt back, and the game can be lost | Standing next to a monster costs hit points, shown on the status line. At zero, the game over screen shows, then the title. | ✅ |
+| 16 | Potions heal | Pick up a potion, take some hits, then press `p`: hit points go up by 5, never past the most, and the potion leaves the inventory. With no potions, `p` says so. | ✅ |
+| 17 | Settings change the game | Changing a setting in the TOML file, such as fewer floors or a smaller level, changes the game, and the fingerprint beside the seed changes with it. A mistake in the file warns and falls back to the default for that value. The settings code on the win or game over screen replays the same settings with `--settings-code`, with the same fingerprint. | ✅ |
+| 18 | The original checks still hold | Re-run checks 1 to 3 on the finished stretch goals, with input that starts a game from the title screen first. | ✅ |
+| 19 | The screen sits in the middle of the terminal | Play in a terminal bigger than the game: every screen, from the title to the win or game over screen, sits in the middle, across and down, with its lines still lined up. Resizing the terminal re-centres it on the next key. Piped output, as in check 3, is unchanged. | ✅ |
+| 20 | The cursor is hidden while playing | In a terminal, no cursor blinks anywhere during the game. After quitting, after Ctrl-C, and after leaving from the title, the shell's cursor is back. | |
+| 21 | The playing screen is framed in labelled panels | The title has its own banner, separate from the game; View, Map, Key and Messages are each labelled; the menu sits in a bar at the bottom, all inside one edge. | |
+| 22 | The other screens match | The new game, items, help, log, leave, win and game over screens each sit in the same edge with the title banner and their own label; the title screen is unchanged. | |
 
 ## Acceptance criteria
 
@@ -132,4 +140,4 @@ The person added these after play-testing:
 - Saving and loading from a menu. Levels regenerate from the seed, so a save only needs the seed, the depth, the player's position and inventory, the explored tiles, and which items have been picked up on the current level.
 - A log that keeps past messages instead of replacing them, with a key to clear it. The person added this while trying row 15.
 
-The person chose every stretch goal except saving and loading, planned as rows 15 to 31, with checks 8 to 18.
+The person chose every stretch goal except saving and loading, planned as rows 15 to 31, with checks 8 to 18. Rows 32 to 35 and checks 19 to 22, centring the screen, hiding the cursor and framing the screens, came from play-testing.

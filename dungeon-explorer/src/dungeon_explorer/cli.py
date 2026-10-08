@@ -11,6 +11,7 @@ it's read a line at a time instead, so scripted runs work the same anywhere.
 import argparse
 import os
 import random
+import shutil
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -33,16 +34,20 @@ def game_loop(
     read_line: Callable[[str], str],
     write: Callable[[str], None],
     clear: bool = False,
+    terminal_size: Callable[[], os.terminal_size] | None = None,
 ) -> None:
     """Show `state`, then each state it leads to, until the player quits or
     the input runs out. The last state shown says goodbye.
 
     `read_line` and `write` work like input() and print(). main passes in
     read_key or input, and print, so tests can script the player's input and
-    collect what's drawn.
+    collect what's drawn. Given `terminal_size`, each screen is centred in the
+    terminal, measured afresh every turn in case it's been resized.
     """
     while True:
         screen = "\n".join(state.draw())
+        if terminal_size is not None:
+            screen = centre(screen, terminal_size())
         write(CLEAR_SCREEN + screen if clear else screen)
         try:
             text = read_line(PROMPT)
@@ -53,6 +58,19 @@ def game_loop(
             break
         state = next_state
     write(state.goodbye())
+
+
+def centre(screen: str, size: os.terminal_size) -> str:
+    """`screen` moved to the middle of a terminal of `size`.
+
+    It moves as one block, so its lines stay lined up with each other. A
+    screen too big for the terminal stays in the top left.
+    """
+    lines = screen.split("\n")
+    width = max(len(line) for line in lines)
+    left = " " * max((size.columns - width) // 2, 0)
+    top = max((size.lines - len(lines)) // 2, 0)
+    return "\n" * top + "\n".join(left + line if line else line for line in lines)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -94,7 +112,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     try:
         read = read_key if sys.stdin.isatty() else input
-        game_loop(title, read, print, clear=sys.stdout.isatty())
+        # Only a terminal is cleared and centred: piped output stays as drawn.
+        terminal = sys.stdout.isatty()
+        size = shutil.get_terminal_size if terminal else None
+        game_loop(title, read, print, clear=terminal, terminal_size=size)
     except KeyboardInterrupt:
         print()
         return 130

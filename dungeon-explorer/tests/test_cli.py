@@ -1,10 +1,11 @@
+import os
 from collections.abc import Callable
 
 import pytest
 from helpers import game_on, level_from
 
 from dungeon_explorer import cli
-from dungeon_explorer.cli import CLEAR_SCREEN, _key_from, game_loop, main
+from dungeon_explorer.cli import CLEAR_SCREEN, _key_from, centre, game_loop, main
 from dungeon_explorer.game import Game
 from dungeon_explorer.generate import floor_count
 from dungeon_explorer.level import Monster
@@ -326,3 +327,59 @@ def test_a_code_that_cant_be_read_is_reported_on_the_title_screen(monkeypatch, c
 
     assert "Problems with the settings file:" in out
     assert "the settings code can't be read, so the defaults are used" in out
+
+
+def _size(columns: int, lines: int) -> os.terminal_size:
+    return os.terminal_size((columns, lines))
+
+
+def test_a_screen_is_centred_across_and_down_in_a_bigger_terminal():
+    screen = "abcd\nef"
+
+    # 4 wide and 2 tall in 10 by 6: 3 columns in, 2 lines down.
+    assert centre(screen, _size(10, 6)) == "\n\n   abcd\n   ef"
+
+
+def test_a_centred_screen_keeps_its_lines_lined_up_and_blank_lines_empty():
+    screen = "+--+\n\n|ab|"
+
+    assert centre(screen, _size(8, 3)).split("\n") == ["  +--+", "", "  |ab|"]
+
+
+def test_an_odd_space_left_over_goes_to_the_right_and_bottom():
+    assert centre("ab", _size(5, 2)) == " ab"
+
+
+def test_a_screen_too_big_for_the_terminal_stays_in_the_top_left():
+    screen = "x" * 100 + "\n" + "y"
+
+    assert centre(screen, _size(80, 1)) == screen
+
+
+def test_the_loop_centres_each_screen_when_it_can_measure_the_terminal():
+    game = game_on(ROOM, position=(1, 1))
+    first_screen = "\n".join(PlayingState(game_on(ROOM, position=(1, 1))).draw())
+    drawn: list[str] = []
+    # The terminal shrinks between turns, so each screen is measured afresh.
+    sizes = iter([_size(120, 40), _size(100, 30)])
+
+    game_loop(
+        PlayingState(game),
+        _script("d"),
+        drawn.append,
+        terminal_size=lambda: next(sizes),
+    )
+
+    second_screen = "\n".join(PlayingState(game).draw())
+    assert drawn[0] == centre(first_screen, _size(120, 40))
+    assert drawn[1] == centre(second_screen, _size(100, 30))
+    assert drawn[0] != first_screen
+
+
+def test_without_a_terminal_the_screens_are_drawn_as_they_are():
+    game = game_on(ROOM, position=(1, 1))
+    drawn: list[str] = []
+
+    game_loop(PlayingState(game), _script(), drawn.append)
+
+    assert drawn[0] == "\n".join(PlayingState(game).draw())
