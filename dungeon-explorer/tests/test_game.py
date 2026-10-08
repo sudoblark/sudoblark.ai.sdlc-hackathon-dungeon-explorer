@@ -412,3 +412,102 @@ def test_only_monsters_with_a_clear_line_to_the_player_are_in_sight():
     game = game_on(level, position=(3, 1))
 
     assert game.monsters_in_sight() == [seen]
+
+
+def _goblin(position: Point) -> Monster:
+    return Monster("goblin", "g", hit_points=4, damage=2, position=position)
+
+
+OPEN_ROOM = (
+    "#########",
+    "#.......#",
+    "#.......#",
+    "#.......#",
+    "#########",
+)
+
+
+def test_a_monster_in_sight_steps_towards_the_player_after_each_step():
+    rat = _rat((6, 2))
+    game = game_on(level_from(*OPEN_ROOM, monsters=[rat]), position=(1, 2))
+
+    game.move(Direction.NORTH)
+    assert rat.position == (5, 2)
+    game.move(Direction.SOUTH)
+    assert rat.position == (4, 2)
+
+
+def test_a_monster_closes_in_along_the_axis_the_player_is_furthest_on():
+    rat = _rat((4, 1))
+    game = game_on(level_from(*OPEN_ROOM, monsters=[rat]), position=(2, 3))
+
+    # The player steps to (3, 3): one across from the rat but two down, so the
+    # rat steps down, not across.
+    game.move(Direction.EAST)
+
+    assert rat.position == (4, 2)
+
+
+def test_a_monster_out_of_sight_stays_where_it_is():
+    hidden = _rat((3, 3))
+    loop = level_from(
+        "#######",
+        "#.....#",
+        "#.###.#",
+        "#.....#",
+        "#######",
+        monsters=[hidden],
+    )
+    game = game_on(loop, position=(3, 1))
+
+    game.move(Direction.EAST)
+
+    assert hidden.position == (3, 3)
+
+
+def test_a_monster_next_to_the_player_stays_put():
+    rat = _rat((3, 1))
+    game = game_on(level_from(*OPEN_ROOM, monsters=[rat]), position=(1, 1))
+
+    game.move(Direction.EAST)
+
+    assert rat.position == (3, 1)
+
+
+def test_a_wall_in_the_way_sends_a_monster_along_the_other_axis():
+    # The rat at (3, 1) can see the player at (1, 3) past the wall at (2, 1),
+    # but can't step through it, so it steps down instead.
+    rat = _rat((3, 1))
+    level = level_from(
+        "#####",
+        "#.#.#",
+        "#...#",
+        "#...#",
+        "#####",
+        monsters=[rat],
+    )
+    game = game_on(level, position=(2, 3))
+
+    game.move(Direction.WEST)
+
+    assert rat.position == (3, 2)
+
+
+def test_monsters_take_turns_and_never_share_a_tile():
+    # The rat goes first, finds the goblin in its way, and steps up instead.
+    rat, goblin = _rat((5, 2)), _goblin((4, 2))
+    game = game_on(level_from(*OPEN_ROOM, monsters=[rat, goblin]), position=(1, 2))
+
+    game.move(Direction.NORTH)
+
+    assert rat.position == (5, 1)
+    assert goblin.position == (3, 2)
+
+
+def test_bumping_into_a_wall_doesnt_give_the_monsters_a_turn():
+    rat = _rat((6, 2))
+    game = game_on(level_from(*OPEN_ROOM, monsters=[rat]), position=(1, 1))
+
+    game.move(Direction.NORTH)
+
+    assert rat.position == (6, 2)

@@ -63,7 +63,9 @@ class Game:
     def move(self, direction: Direction) -> None:
         """Step the player one tile, unless a wall or a monster is in the way.
 
-        Anything on the tile they step onto goes into their inventory.
+        Anything on the tile they step onto goes into their inventory. A step
+        is a turn, so the monsters then take theirs. Bumping into something
+        isn't, so a slip of the finger never lets them close in.
         """
         target = direction.step_from(self.player.position)
         if not self._is_floor(target):
@@ -76,6 +78,7 @@ class Game:
         self.player.position = target
         self._pick_up()
         self._explore()
+        self._monsters_act()
 
     def descend(self) -> None:
         """Go down to the next level, if the player is standing on the stairs.
@@ -117,6 +120,34 @@ class Game:
     def clear_log(self) -> None:
         self.log.clear()
 
+    def _monsters_act(self) -> None:
+        """Each monster that can see the player steps one tile towards them."""
+        for monster in self.level.monsters:
+            if self.level.can_see(monster.position, self.player.position):
+                self._step_towards_player(monster)
+
+    def _step_towards_player(self, monster: Monster) -> None:
+        """Move `monster` one tile closer to the player, along the axis they're
+        furthest apart on, or the other if that's blocked.
+
+        A monster already next to the player stays where it is, and none steps
+        into a wall or onto another monster.
+        """
+        (x, y), (player_x, player_y) = monster.position, self.player.position
+        across, down = player_x - x, player_y - y
+        steps = [(_sign(across), 0), (0, _sign(down))]
+        if abs(down) > abs(across):
+            steps.reverse()
+        for step_x, step_y in steps:
+            target = (x + step_x, y + step_y)
+            if target == monster.position:
+                continue
+            if target == self.player.position:
+                return
+            if self._is_floor(target) and self.level.monster_at(target) is None:
+                monster.position = target
+                return
+
     def _pick_up(self) -> None:
         """Move any item under the player off the level and into their inventory."""
         item = self.level.items.pop(self.player.position, None)
@@ -147,3 +178,8 @@ class Game:
     def _on_level(self, point: Point) -> bool:
         x, y = point
         return 0 <= x < self.level.width and 0 <= y < self.level.height
+
+
+def _sign(number: int) -> int:
+    """-1, 0 or 1, the direction `number` points in."""
+    return (number > 0) - (number < 0)
