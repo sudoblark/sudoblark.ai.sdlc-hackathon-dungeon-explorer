@@ -132,6 +132,18 @@ def test_playing_ignores_an_empty_line():
     assert game == before
 
 
+@pytest.mark.parametrize("text", ["c", "C"])
+def test_c_clears_the_log_without_taking_a_turn(text):
+    # The goblin next to the player would kill them if clearing were a turn.
+    game = _about_to_die()
+    game.say("A wall is in the way.")
+    playing = PlayingState(game)
+
+    assert playing.handle(text) is playing
+    assert game.log == []
+    assert game.player.hit_points == 1
+
+
 def _parts(lines: list[str]) -> tuple[str, list[str], str, list[str]]:
     """A framed screen's label, the lines in its panel, the text of its keys
     bar, and any lines below its edge, checking the edge lines up all round."""
@@ -511,6 +523,11 @@ def test_other_keys_on_the_seed_screen_do_nothing():
 
     assert seed.handle("x") is seed
     assert seed.digits == "7"
+
+
+def test_leaving_from_the_seed_screen_says_a_plain_goodbye():
+    # No game has started, so there's no level or seed to name.
+    assert SeedState(_title(), digits="7").goodbye() == "Goodbye!"
 
 
 def test_leaving_asks_for_confirmation():
