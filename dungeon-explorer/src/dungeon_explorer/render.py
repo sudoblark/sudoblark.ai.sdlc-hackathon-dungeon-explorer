@@ -5,6 +5,7 @@ from dungeon_explorer.level import (
     PLAYER,
     STAIRS_DOWN,
     UNSEEN,
+    Level,
     Monster,
     Point,
     Tile,
@@ -78,23 +79,33 @@ def _glyph(game: Game, point: Point, in_sight: dict[Point, Monster]) -> str:
 def _block_glyph(game: Game, corner: Point, in_sight: dict[Point, Monster]) -> str:
     """What the mini-map shows for the block of tiles with `corner` at its top left.
 
-    The player, else a monster in sight, else the stairs if they've been
-    seen, else the first item seen, else floor if any explored tile is floor,
-    else wall if any tile is explored, else blank.
+    The player, else a monster in sight, else what the block's explored tiles
+    show.
     """
-    level = game.level
-    left, top = corner
-    block = [
-        (x, y)
-        for y in range(top, min(top + MINI_MAP_SCALE, level.height))
-        for x in range(left, min(left + MINI_MAP_SCALE, level.width))
-    ]
+    block = _block(game.level, corner)
     if game.player.position in block:
         return PLAYER
     for point in block:
         if point in in_sight:
             return in_sight[point].glyph
-    seen = [point for point in block if point in game.explored]
+    return _seen_glyph(game.level, [point for point in block if point in game.explored])
+
+
+def _block(level: Level, corner: Point) -> list[Point]:
+    """The tiles in the mini-map block with `corner` at its top left, row by
+    row. A block at the level's right or bottom edge may be cut short."""
+    left, top = corner
+    return [
+        (x, y)
+        for y in range(top, min(top + MINI_MAP_SCALE, level.height))
+        for x in range(left, min(left + MINI_MAP_SCALE, level.width))
+    ]
+
+
+def _seen_glyph(level: Level, seen: list[Point]) -> str:
+    """What the mini-map shows for a block's explored tiles, `seen`: the stairs,
+    else the first item, else floor if any is floor, else wall if any tile is
+    explored, else blank."""
     if level.stairs_down in seen:
         return STAIRS_DOWN
     for point in seen:
