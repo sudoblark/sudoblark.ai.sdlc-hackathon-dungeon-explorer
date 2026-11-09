@@ -1,13 +1,17 @@
 """Draws the game as text: pure functions that turn the model into lines."""
 
 from dungeon_explorer.game import Game
-from dungeon_explorer.level import Monster, Point, Tile
+from dungeon_explorer.level import (
+    PLAYER,
+    STAIRS_DOWN,
+    UNSEEN,
+    Monster,
+    Point,
+    Tile,
+)
 
 # Each side of the square of tiles one mini-map character stands for.
 MINI_MAP_SCALE = 2
-PLAYER = "@"
-STAIRS_DOWN = ">"
-UNSEEN = " "
 
 
 def draw_view(

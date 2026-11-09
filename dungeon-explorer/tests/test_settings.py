@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from dungeon_explorer.game import Game
-from dungeon_explorer.level import Item, Monster
+from dungeon_explorer.level import PLAYER, STAIRS_DOWN, UNSEEN, Item, Monster, Tile
 from dungeon_explorer.settings import (
     DEFAULT_SETTINGS,
     Settings,
@@ -246,6 +246,29 @@ damage = 1
     assert warnings == [
         "the wall-crawler can't use '#', which is taken, so it's skipped",
         "the ghost can't use '!', which is taken, so it's skipped",
+    ]
+
+
+@pytest.mark.parametrize("glyph", [*Tile, PLAYER, STAIRS_DOWN, UNSEEN])
+def test_nothing_can_look_like_what_the_screen_draws(tmp_path, glyph):
+    text = f"""
+[[monsters]]
+name = "mimic"
+glyph = "{glyph}"
+hit_points = 1
+damage = 1
+
+[[monsters]]
+name = "bat"
+glyph = "b"
+hit_points = 1
+damage = 1
+"""
+    settings, warnings = _load(tmp_path, text)
+
+    assert [monster.name for monster, _ in settings.monsters] == ["bat"]
+    assert warnings == [
+        f"the mimic can't use '{glyph}', which is taken, so it's skipped"
     ]
 
 

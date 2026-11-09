@@ -16,14 +16,8 @@ from dataclasses import dataclass
 
 from dungeon_explorer.commands import parse_command
 from dungeon_explorer.game import PLAYER_HIT_POINTS, Game
-from dungeon_explorer.level import Tile
-from dungeon_explorer.render import (
-    MINI_MAP_SCALE,
-    PLAYER,
-    STAIRS_DOWN,
-    draw_mini_map,
-    draw_view,
-)
+from dungeon_explorer.level import PLAYER, STAIRS_DOWN, Tile
+from dungeon_explorer.render import MINI_MAP_SCALE, draw_mini_map, draw_view
 from dungeon_explorer.settings import DEFAULT_SETTINGS, Settings
 
 BACK = "Press any key to go back."

@@ -34,6 +34,13 @@ class Tile(StrEnum):
     FLOOR = "."
 
 
+# How the player, the stairs and tiles not yet explored are drawn. Like the
+# tiles' own glyphs, they're reserved, so no item or monster can use them.
+PLAYER = "@"
+STAIRS_DOWN = ">"
+UNSEEN = " "
+
+
 @dataclass(frozen=True)
 class Room:
     """A rectangle of floor, with (x, y) as its top-left tile."""

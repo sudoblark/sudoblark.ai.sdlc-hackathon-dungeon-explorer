@@ -21,7 +21,7 @@ from pydantic import (
     model_validator,
 )
 
-from dungeon_explorer.level import Item, Monster
+from dungeon_explorer.level import PLAYER, STAIRS_DOWN, UNSEEN, Item, Monster, Tile
 
 # A kind of item or monster, and the first floor it can turn up on.
 ItemKind = tuple[Item, int]
@@ -99,7 +99,7 @@ DEFAULT_SETTINGS = Settings()
 _DEFAULTS = DEFAULT_SETTINGS
 # Glyphs the screen already uses for walls, floor, the player, the stairs and
 # unseen tiles, so no item or monster can have them.
-RESERVED_GLYPHS = {"#", ".", "@", ">", " "}
+RESERVED_GLYPHS = {*(tile.value for tile in Tile), PLAYER, STAIRS_DOWN, UNSEEN}
 # The most a settings code can expand to, far more than any real settings need.
 CODE_LIMIT = 64 * 1024
 

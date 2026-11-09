@@ -6,8 +6,8 @@ from helpers import game_on, level_from
 from dungeon_explorer.commands import KEYS
 from dungeon_explorer.game import Game
 from dungeon_explorer.generate import floor_count
-from dungeon_explorer.level import Item, Monster, Tile
-from dungeon_explorer.render import PLAYER, STAIRS_DOWN, draw_mini_map, draw_view
+from dungeon_explorer.level import PLAYER, STAIRS_DOWN, Item, Monster, Tile
+from dungeon_explorer.render import draw_mini_map, draw_view
 from dungeon_explorer.settings import DEFAULT_SETTINGS, Settings
 from dungeon_explorer.states import (
     PLAYING_KEYS,
