@@ -399,9 +399,10 @@ def _size(settings: Settings) -> _Size:
     map_height = -(-settings.level_height // MINI_MAP_SCALE)
     symbols = legend(settings)
     panel_height = max(settings.view_height, map_height, len(symbols))
-    # Room for the longest status line a game could have: the most floors, a
-    # nine-digit seed below zero, and full hit points.
-    longest = _status(settings.max_floors, settings.max_floors, -(10**9 - 1), settings)
+    # Room for the longest status line a game could have: the most floors, the
+    # longest seed the new game screen takes, and full hit points.
+    most_seed = 10**SEED_DIGITS - 1
+    longest = _status(settings.max_floors, settings.max_floors, most_seed, settings)
     hit_points = f"HP {PLAYER_HIT_POINTS}/{PLAYER_HIT_POINTS}"
     width = max(
         MIN_FRAME_WIDTH,

@@ -18,7 +18,7 @@ from contextlib import contextmanager, nullcontext
 from pathlib import Path
 
 from dungeon_explorer.settings import load_settings, load_settings_code
-from dungeon_explorer.states import State, TitleState
+from dungeon_explorer.states import SEED_DIGITS, State, TitleState
 
 PROMPT = "> "
 # ANSI codes to clear the terminal and move to its top left, so each turn
@@ -103,6 +103,11 @@ def main(argv: list[str] | None = None) -> int:
         help="play with the settings a code from the end of another game gives",
     )
     args = parser.parse_args(argv)
+    # The seed fills in the new game screen, so it must be one that screen
+    # could have typed: digits only, and no more of them than it takes.
+    most = 10**SEED_DIGITS - 1
+    if args.seed is not None and not 0 <= args.seed <= most:
+        parser.error(f"argument --seed: must be from 0 to {most}")
     if args.settings_code is not None:
         settings, warnings = load_settings_code(args.settings_code)
     else:
