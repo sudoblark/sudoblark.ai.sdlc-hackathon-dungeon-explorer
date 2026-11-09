@@ -4,7 +4,16 @@ import heapq
 import random
 from dataclasses import replace
 
-from dungeon_explorer.level import Item, Level, Monster, Point, Room, Tile
+from dungeon_explorer.level import (
+    Direction,
+    Item,
+    Level,
+    Monster,
+    Point,
+    Room,
+    Tile,
+    around,
+)
 from dungeon_explorer.settings import DEFAULT_SETTINGS, Settings
 
 # How generation works rather than what it makes, so these aren't settings.
@@ -15,8 +24,8 @@ ROOM_GAP = 2
 # short detour rather than zigzag.
 BEND_COST = 4
 
-# One tile north, east, south and west.
-STEPS: tuple[Point, ...] = ((0, -1), (1, 0), (0, 1), (-1, 0))
+# One tile north, east, south and west, in that order.
+STEPS: tuple[Point, ...] = tuple(direction.value for direction in Direction)
 
 
 def floor_count(seed: int, settings: Settings = DEFAULT_SETTINGS) -> int:
@@ -47,7 +56,7 @@ def generate_level(
     stairs_down = _place_stairs_down(rng, rooms)
     # Nothing goes on the eight tiles around the stairs, so they stand alone
     # in the view and never share a block on the mini-map.
-    taken = {player_start, *_around(stairs_down)}
+    taken = {player_start, *around(stairs_down)}
     items = _place_items(rng, rooms, depth, taken, settings)
     monsters = _place_monsters(rng, rooms, depth, {stairs_down, *items}, settings)
     return Level(
@@ -123,12 +132,6 @@ def _place_monsters(
     return [
         replace(rng.choice(kinds), position=tile) for tile in rng.sample(floor, count)
     ]
-
-
-def _around(point: Point) -> set[Point]:
-    """`point` and the eight tiles around it."""
-    x, y = point
-    return {(x + dx, y + dy) for dy in (-1, 0, 1) for dx in (-1, 0, 1)}
 
 
 def _join_rooms(tiles: list[list[Tile]], rooms: list[Room]) -> list[Room]:

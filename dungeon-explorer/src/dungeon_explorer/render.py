@@ -62,15 +62,13 @@ def _glyph(game: Game, point: Point, in_sight: dict[Point, Monster]) -> str:
     if point in in_sight:
         return in_sight[point].glyph
     level = game.level
-    x, y = point
-    on_level = 0 <= x < level.width and 0 <= y < level.height
-    if not on_level or point not in game.explored:
+    if not level.contains(point) or point not in game.explored:
         return UNSEEN
     if point in level.items:
         return level.items[point].glyph
     if point == level.stairs_down:
         return STAIRS_DOWN
-    return level.tile(x, y)
+    return level.tile(*point)
 
 
 def _block_glyph(game: Game, corner: Point, in_sight: dict[Point, Monster]) -> str:

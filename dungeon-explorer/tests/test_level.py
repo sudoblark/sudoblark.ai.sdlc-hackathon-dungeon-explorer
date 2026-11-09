@@ -1,7 +1,7 @@
 import pytest
 from helpers import level_from
 
-from dungeon_explorer.level import Direction, Level, Monster, Room, Tile
+from dungeon_explorer.level import Direction, Level, Monster, Room, Tile, around
 
 
 @pytest.mark.parametrize(
@@ -15,6 +15,31 @@ from dungeon_explorer.level import Direction, Level, Monster, Room, Tile
 )
 def test_a_direction_steps_one_tile_from_a_point(direction, point):
     assert direction.step_from((3, 3)) == point
+
+
+def test_around_a_point_is_it_and_its_eight_neighbours_row_by_row():
+    assert around((3, 3)) == [
+        (2, 2), (3, 2), (4, 2),
+        (2, 3), (3, 3), (4, 3),
+        (2, 4), (3, 4), (4, 4),
+    ]  # fmt: skip
+
+
+@pytest.mark.parametrize(
+    ("point", "on_level"),
+    [
+        ((0, 0), True),
+        ((4, 2), True),
+        ((-1, 0), False),
+        ((0, -1), False),
+        ((5, 0), False),
+        ((0, 3), False),
+    ],
+)
+def test_a_level_contains_only_the_points_on_its_grid(point, on_level):
+    level = level_from("#####", "#...#", "#####")
+
+    assert level.contains(point) is on_level
 
 
 def test_room_right_and_bottom_are_just_past_its_floor():

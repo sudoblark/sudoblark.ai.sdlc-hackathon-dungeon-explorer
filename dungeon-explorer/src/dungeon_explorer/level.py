@@ -21,6 +21,12 @@ class Direction(Enum):
         return (point[0] + dx, point[1] + dy)
 
 
+def around(point: Point) -> list[Point]:
+    """`point` and the eight tiles around it, row by row."""
+    x, y = point
+    return [(x + dx, y + dy) for dy in (-1, 0, 1) for dx in (-1, 0, 1)]
+
+
 class Tile(StrEnum):
     """One square of a level. Its value is how it's drawn."""
 
@@ -137,6 +143,11 @@ class Level:
 
     def tile(self, x: int, y: int) -> Tile:
         return self.tiles[y][x]
+
+    def contains(self, point: Point) -> bool:
+        """Whether `point` is on the level."""
+        x, y = point
+        return 0 <= x < self.width and 0 <= y < self.height
 
     def monster_at(self, point: Point) -> Monster | None:
         return next((m for m in self.monsters if m.position == point), None)

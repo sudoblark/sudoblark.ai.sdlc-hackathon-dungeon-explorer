@@ -4,7 +4,15 @@ from dataclasses import dataclass, field
 from typing import Self
 
 from dungeon_explorer.generate import floor_count, generate_level
-from dungeon_explorer.level import Direction, Item, Level, Monster, Point, Tile
+from dungeon_explorer.level import (
+    Direction,
+    Item,
+    Level,
+    Monster,
+    Point,
+    Tile,
+    around,
+)
 from dungeon_explorer.settings import DEFAULT_SETTINGS, Settings
 
 # What the player hits with when they carry no weapon.
@@ -234,17 +242,13 @@ class Game:
             if position in room.tiles():
                 self.explored.update(room.tiles())
                 self.explored.update(room.walls())
-        x, y = position
-        around = [(x + dx, y + dy) for dy in (-1, 0, 1) for dx in (-1, 0, 1)]
-        self.explored.update(tile for tile in around if self._on_level(tile))
+        self.explored.update(
+            tile for tile in around(position) if self.level.contains(tile)
+        )
 
     def _is_floor(self, point: Point) -> bool:
         """Whether `point` is on the level and is floor, so it can be walked on."""
-        return self._on_level(point) and self.level.tile(*point) is Tile.FLOOR
-
-    def _on_level(self, point: Point) -> bool:
-        x, y = point
-        return 0 <= x < self.level.width and 0 <= y < self.level.height
+        return self.level.contains(point) and self.level.tile(*point) is Tile.FLOOR
 
 
 def _sign(number: int) -> int:
