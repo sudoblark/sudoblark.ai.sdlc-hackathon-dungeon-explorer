@@ -3,12 +3,14 @@ import copy
 import pytest
 from helpers import game_on, level_from
 
+from dungeon_explorer.commands import KEYS
 from dungeon_explorer.game import Game
 from dungeon_explorer.generate import floor_count
 from dungeon_explorer.level import Item, Monster, Tile
 from dungeon_explorer.render import PLAYER, STAIRS_DOWN, draw_mini_map, draw_view
 from dungeon_explorer.settings import DEFAULT_SETTINGS, Settings
 from dungeon_explorer.states import (
+    PLAYING_KEYS,
     GameOverState,
     HelpState,
     InventoryState,
@@ -178,6 +180,17 @@ def test_the_inventory_says_when_it_is_empty():
     _, body, _, _ = _parts(InventoryState(game).draw())
 
     assert body == ["  You aren't carrying anything yet."]
+
+
+def test_every_key_in_the_table_is_a_command_or_acts_on_the_playing_screen():
+    # A key with no act falls through to the commands, so it must be bound
+    # there, and every command needs a row for the help and the menu.
+    commands = {k for key in PLAYING_KEYS if key.act is None for k in key.keys.split()}
+    acts = [key.keys for key in PLAYING_KEYS if key.act is not None]
+
+    assert commands == set(KEYS)
+    assert len(acts) == len(set(acts))
+    assert not set(acts) & commands
 
 
 def test_the_help_lists_every_key():
