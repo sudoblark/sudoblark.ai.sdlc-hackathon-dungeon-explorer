@@ -15,18 +15,14 @@ from dungeon_explorer.level import (
 MINI_MAP_SCALE = 2
 
 
-def draw_view(
-    game: Game, width: int | None = None, height: int | None = None
-) -> list[str]:
+def draw_view(game: Game) -> list[str]:
     """The tiles around the player at full scale, with the player in the middle.
 
     Only explored tiles, and monsters in sight, are drawn. Anything else, or
-    anything past the edge of the level, is blank. Every line is exactly
-    `width` characters long. The size comes from the game's settings unless
-    it's given.
+    anything past the edge of the level, is blank. The view is the size the
+    game's settings give, and every line is exactly that wide.
     """
-    width = width or game.settings.view_width
-    height = height or game.settings.view_height
+    width, height = game.settings.view_width, game.settings.view_height
     player_x, player_y = game.player.position
     left = player_x - width // 2
     top = player_y - height // 2

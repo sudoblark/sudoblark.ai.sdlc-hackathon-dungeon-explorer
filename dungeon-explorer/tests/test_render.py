@@ -3,6 +3,7 @@ from helpers import game_on, level_from
 from dungeon_explorer.game import Game
 from dungeon_explorer.level import Item, Monster, Point
 from dungeon_explorer.render import draw_mini_map, draw_view
+from dungeon_explorer.settings import Settings
 
 POTION = Item("potion", "!")
 
@@ -20,11 +21,17 @@ def _everywhere(width: int, height: int) -> set[Point]:
     return {(x, y) for y in range(height) for x in range(width)}
 
 
+def _view(game: Game, width: int, height: int) -> list[str]:
+    """The view of `game`, with settings for a view `width` by `height`."""
+    game.settings = Settings(view_width=width, view_height=height)
+    return draw_view(game)
+
+
 def test_the_view_draws_explored_tiles_with_the_player_in_the_middle():
     game = game_on(HALL, position=(3, 1))
     game.explored = _everywhere(7, 4)
 
-    assert draw_view(game, width=7, height=3) == [
+    assert _view(game, 7, 3) == [
         "#######",
         "#..@..#",
         "#!...>#",
@@ -37,7 +44,7 @@ def test_unexplored_tiles_are_blank_and_hide_what_is_on_them():
     # (1, 2) and the stairs at (5, 2) unexplored.
     game.explored = {(x, y) for y in range(3) for x in range(2, 5)}
 
-    assert draw_view(game, width=7, height=3) == [
+    assert _view(game, 7, 3) == [
         "  ###  ",
         "  .@.  ",
         "  ...  ",
@@ -48,7 +55,7 @@ def test_past_the_edge_of_the_level_is_blank():
     game = game_on(HALL, position=(1, 1))
     game.explored = _everywhere(7, 4)
 
-    assert draw_view(game, width=7, height=3) == [
+    assert _view(game, 7, 3) == [
         "  #####",
         "  #@...",
         "  #!...",
@@ -59,7 +66,7 @@ def test_the_player_is_drawn_over_the_stairs():
     game = game_on(HALL, position=(5, 2))
     game.explored = _everywhere(7, 4)
 
-    assert draw_view(game, width=3, height=3) == [
+    assert _view(game, 3, 3) == [
         "..#",
         ".@#",
         "###",
@@ -200,7 +207,7 @@ def test_the_view_draws_monsters_in_sight_and_hides_the_rest():
     game = game_on(pillar, position=(3, 2))
     game.explored = _everywhere(7, 5)
 
-    assert draw_view(game, width=7, height=5) == [
+    assert _view(game, 7, 5) == [
         "#######",
         "#.....#",
         "#.#@.r#",
@@ -214,7 +221,7 @@ def test_a_monster_in_sight_shows_before_its_tile_is_explored():
     game = game_on(level, position=(3, 1))
     game.explored = {(3, 1)}
 
-    assert draw_view(game, width=7, height=3)[1] == "   @ r "
+    assert _view(game, 7, 3)[1] == "   @ r "
 
 
 def test_the_mini_map_shows_monsters_only_while_in_sight():
