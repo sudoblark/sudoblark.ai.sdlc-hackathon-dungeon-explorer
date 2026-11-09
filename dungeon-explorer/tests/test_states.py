@@ -177,6 +177,26 @@ def test_the_help_lists_every_key():
         assert any(line.startswith(f"  {key} ") for line in body), key
 
 
+@pytest.mark.parametrize(
+    ("healing", "says"),
+    [
+        ((5,), "drink a potion, healing 5 hit points"),
+        ((3,), "drink a potion, healing 3 hit points"),
+        ((8, 3, 3), "drink a potion, healing 3 to 8 hit points"),
+        ((), "drink a potion"),
+    ],
+)
+def test_the_help_says_what_potions_heal_with_the_settings(healing, says):
+    # Anything with healing is a potion to drink, whatever it's called.
+    drinks = tuple((Item(f"drink {n}", "!", healing=n), 1) for n in healing)
+    settings = Settings(items=(*drinks, (Item("gold", "$"), 1)))
+    game = _with_settings(game_on(ROOM, position=(2, 2)), settings)
+
+    _, body, _, _ = _parts(HelpState(game).draw())
+
+    assert f"  p         {says}" in body
+
+
 @pytest.mark.parametrize("screen", [InventoryState, HelpState])
 @pytest.mark.parametrize("text", ["", "q", "w", "i"])
 def test_any_input_on_the_inventory_or_help_goes_back_to_playing(screen, text):

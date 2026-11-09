@@ -271,7 +271,7 @@ class HelpState(_InGameState):
             "  w a s d   move north, west, south or east",
             "  >         go down the stairs, when you're on them",
             "  i         look at your items",
-            "  p         drink a potion, healing 5 hit points",
+            f"  p         {_drinking(self.game.settings)}",
             "  l         read every message so far",
             "  c         clear the messages",
             "  ?         show this help",
@@ -435,6 +435,17 @@ def legend(settings: Settings) -> list[tuple[str, str]]:
         *((item.glyph, item.name) for item, _ in settings.items),
         *((monster.glyph, monster.name) for monster, _ in settings.monsters),
     ]
+
+
+def _drinking(settings: Settings) -> str:
+    """What drinking does with `settings`. Anything that heals is a potion to
+    drink, so this gives the healing of every kind, or the range of them."""
+    healing = sorted({item.healing for item, _ in settings.items if item.healing})
+    if not healing:
+        return "drink a potion"
+    if len(healing) == 1:
+        return f"drink a potion, healing {healing[0]} hit points"
+    return f"drink a potion, healing {healing[0]} to {healing[-1]} hit points"
 
 
 def _seed(game: Game) -> str:
