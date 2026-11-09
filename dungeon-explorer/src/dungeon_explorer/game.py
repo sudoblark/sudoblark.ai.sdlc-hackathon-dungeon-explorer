@@ -199,7 +199,8 @@ class Game:
     def _step_towards_player(self, monster: Monster) -> None:
         """Move `monster` one tile closer to the player, along the axis they're
         furthest apart on, or the other if that's blocked. It never steps into
-        a wall, onto another monster, or onto the player.
+        a wall or onto another monster, and never onto the player, since only
+        a monster that isn't next to them steps.
         """
         (x, y), (player_x, player_y) = monster.position, self.player.position
         across, down = player_x - x, player_y - y
@@ -210,8 +211,6 @@ class Game:
             target = (x + step_x, y + step_y)
             if target == monster.position:
                 continue
-            if target == self.player.position:
-                return
             if self._is_floor(target) and self.level.monster_at(target) is None:
                 monster.position = target
                 return
