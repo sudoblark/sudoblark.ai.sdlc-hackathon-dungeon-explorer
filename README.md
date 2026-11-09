@@ -4,7 +4,7 @@ This repository is a fully worked example project from the LLMs in the SDLC hack
 
 For further context please see:
 
-1. The [LLMs in the SDLC](https://sudoblark.com/whitepapers/llms-in-the-sdlc) hackathon guide, given to attendees prior to the hackathon.
+1. The [LLMs in the SDLC](https://sudoblark.com/talks/llms-in-the-sdlc/) hackathon guide, given to attendees prior to the hackathon.
 2. The [sudoblark.ai.sdlc-hackathon](https://github.com/sudoblark/sudoblark.ai.sdlc-hackathon) starter code repository, from which this repository is cloned.
 3. The [dungeon-explorer/](dungeon-explorer/README.md) README for details on how to play the game!
 
