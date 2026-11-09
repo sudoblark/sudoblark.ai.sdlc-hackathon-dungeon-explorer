@@ -213,6 +213,24 @@ damage = 2
     assert all(warning.endswith(", so it's skipped") for warning in warnings)
 
 
+@pytest.mark.parametrize(
+    ("text", "says"),
+    [
+        ('monsters = ["bat"]\n', "[[monsters]] number 1: "),
+        (
+            '[[monsters]]\nglyph = "b"\nhit_points = 1\ndamage = 1\n',
+            "[[monsters]] number 1 name: ",
+        ),
+    ],
+)
+def test_a_kind_that_isnt_a_table_or_has_no_name_goes_by_its_number(
+    tmp_path, text, says
+):
+    _, warnings = _load(tmp_path, text)
+
+    assert warnings[0].startswith(says)
+
+
 def test_when_no_kinds_can_be_used_the_defaults_stay(tmp_path):
     settings, warnings = _load(tmp_path, '[[items]]\nname = "gem"\n')
 

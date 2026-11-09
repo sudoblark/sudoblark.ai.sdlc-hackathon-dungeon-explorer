@@ -248,24 +248,7 @@ def _drop(data: dict[str, Any], problem: Any) -> str:
     location, message = problem["loc"], problem["msg"].removeprefix("Value error, ")
     first = location[0]
     if first in ("items", "monsters") and len(location) > 1:
-        # A mistake in one kind skips that kind. If none are left, the
-        # default kinds stay.
-        entries, number = data[first], location[1]
-        entry = entries[number]
-        name = entry.get("name") if isinstance(entry, dict) else None
-        what = f"[[{first}]] number {number + 1}"
-        if isinstance(name, str) and name:
-            what += f" ({name})"
-        if len(location) > 2:
-            what += f" {location[2]}"
-        del entries[number]
-        if entries:
-            return f"{what}: {message}, so it's skipped"
-        del data[first]
-        return (
-            f"{what}: {message}, so it's skipped, and with none left,"
-            f" the {first} use the defaults"
-        )
+        return _drop_kind(data, location, message)
     if len(location) == 1:
         del data[first]
         if problem["type"] == "extra_forbidden":
@@ -276,6 +259,29 @@ def _drop(data: dict[str, Any], problem: Any) -> str:
     if problem["type"] == "extra_forbidden":
         return f"[{first}] has no key '{key}', so it's ignored"
     return f"[{first}] {key}: {message}, so it uses the default"
+
+
+def _drop_kind(data: dict[str, Any], location: tuple[Any, ...], message: str) -> str:
+    """Remove the item or monster kind at `location` from `data`, and say what
+    was wrong with it. A mistake in one kind skips that kind. If none are
+    left, the default kinds stay."""
+    first, number = location[0], location[1]
+    entries = data[first]
+    entry = entries[number]
+    name = entry.get("name") if isinstance(entry, dict) else None
+    what = f"[[{first}]] number {number + 1}"
+    if isinstance(name, str) and name:
+        what += f" ({name})"
+    if len(location) > 2:
+        what += f" {location[2]}"
+    del entries[number]
+    if entries:
+        return f"{what}: {message}, so it's skipped"
+    del data[first]
+    return (
+        f"{what}: {message}, so it's skipped, and with none left,"
+        f" the {first} use the defaults"
+    )
 
 
 def _to_settings(parsed: _SettingsFile, warnings: list[str]) -> Settings:
