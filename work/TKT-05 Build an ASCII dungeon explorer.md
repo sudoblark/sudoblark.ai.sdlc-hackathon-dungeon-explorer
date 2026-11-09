@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: done
 ---
 ## Description
 
@@ -112,9 +112,9 @@ Checks 8 to 22 test the stretch goals, once rows 15 to 36 have landed.
 | 17 | Settings change the game | Changing a setting in the TOML file, such as fewer floors or a smaller level, changes the game, and the fingerprint beside the seed changes with it. A mistake in the file warns and falls back to the default for that value. The settings code on the win or game over screen replays the same settings with `--settings-code`, with the same fingerprint. | ✅ |
 | 18 | The original checks still hold | Re-run checks 1 to 3 on the finished stretch goals, with input that starts a game from the title screen first. | ✅ |
 | 19 | The screen sits in the middle of the terminal | Play in a terminal bigger than the game: every screen, from the title to the win or game over screen, sits in the middle, across and down, with its lines still lined up. Resizing the terminal re-centres it on the next key. Piped output, as in check 3, is unchanged. | ✅ |
-| 20 | The cursor is hidden while playing | In a terminal, no cursor blinks anywhere during the game. After quitting, after Ctrl-C, and after leaving from the title, the shell's cursor is back. | |
-| 21 | The playing screen is framed in labelled panels | The title has its own banner, separate from the game; View, Map, Key and Messages are each labelled; the menu sits in a bar at the bottom, all inside one edge. | |
-| 22 | The other screens match | The new game, items, help, log, leave, win and game over screens each sit in the same edge with the title banner and their own label. Every screen, the title included, is exactly the same size as the playing screen, so the edge never moves; the title screen keeps its look inside it. | |
+| 20 | The cursor is hidden while playing | In a terminal, no cursor blinks anywhere during the game. After quitting, after Ctrl-C, and after leaving from the title, the shell's cursor is back. | ✅ |
+| 21 | The playing screen is framed in labelled panels | The title has its own banner, separate from the game; View, Map, Key and Messages are each labelled; the menu sits in a bar at the bottom, all inside one edge. | ✅ |
+| 22 | The other screens match | The new game, items, help, log, leave, win and game over screens each sit in the same edge with the title banner and their own label. Every screen, the title included, is exactly the same size as the playing screen, so the edge never moves; the title screen keeps its look inside it. | ✅ |
 
 ## Acceptance criteria
 
