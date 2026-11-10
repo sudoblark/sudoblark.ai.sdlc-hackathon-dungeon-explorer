@@ -583,6 +583,19 @@ def test_monsters_take_turns_and_never_share_a_tile():
     assert goblin.position == (3, 2)
 
 
+def test_a_monster_with_no_step_closer_stays_where_it_is():
+    # In line with the player, the rat's only step closer is the goblin's
+    # tile, so it waits; the goblin, going second, closes in.
+    rat, goblin = _rat((5, 1)), _goblin((4, 1))
+    corridor = level_from("#######", "#.....#", "#######", monsters=[rat, goblin])
+    game = game_on(corridor, position=(2, 1))
+
+    game.move(Direction.WEST)
+
+    assert rat.position == (5, 1)
+    assert goblin.position == (3, 1)
+
+
 def test_bumping_into_a_wall_doesnt_give_the_monsters_a_turn():
     rat = _rat((6, 2))
     game = game_on(level_from(*OPEN_ROOM, monsters=[rat]), position=(1, 1))

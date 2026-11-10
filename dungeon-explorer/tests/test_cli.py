@@ -175,6 +175,27 @@ def test_a_seed_must_be_a_whole_number(capsys):
     assert "invalid int value: 'dragon'" in capsys.readouterr().err
 
 
+@pytest.mark.parametrize("seed", ["-5", "1000000000"])
+def test_a_seed_must_be_one_the_new_game_screen_takes(monkeypatch, capsys, seed):
+    # -5 used to crash: Backspace on the new game screen left a lone "-",
+    # which Enter couldn't read as a seed.
+    monkeypatch.setattr("builtins.input", _script("", "\x7f", ""))
+
+    with pytest.raises(SystemExit) as error:
+        main(["--seed", seed])
+
+    assert error.value.code == 2
+    assert "argument --seed: must be from 0 to 999999999" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("seed", ["0", "999999999"])
+def test_any_seed_the_new_game_screen_takes_can_be_given(monkeypatch, capsys, seed):
+    code, out = _play(monkeypatch, capsys, ["--seed", seed], *START, *LEAVE, *EXIT)
+
+    assert code == 0
+    assert f"   Seed {seed} (settings {FP})" in _status(out)
+
+
 class _Stdin:
     """Stands in for sys.stdin, saying whether it's a terminal."""
 

@@ -16,14 +16,8 @@ from dataclasses import dataclass
 
 from dungeon_explorer.commands import parse_command
 from dungeon_explorer.game import PLAYER_HIT_POINTS, Game
-from dungeon_explorer.level import Tile
-from dungeon_explorer.render import (
-    MINI_MAP_SCALE,
-    PLAYER,
-    STAIRS_DOWN,
-    draw_mini_map,
-    draw_view,
-)
+from dungeon_explorer.level import PLAYER, STAIRS_DOWN, Tile
+from dungeon_explorer.render import MINI_MAP_SCALE, draw_mini_map, draw_view
 from dungeon_explorer.settings import DEFAULT_SETTINGS, Settings
 
 BACK = "Press any key to go back."
@@ -31,7 +25,6 @@ TO_TITLE = "Press any key to go back to the title."
 TITLE = "DUNGEON EXPLORER"
 # The title spaced out, for the banner above the game.
 BANNER = " ".join(TITLE)
-MENU = "i items  p drink  l log  c clear  ? help  q leave"
 # The keys that mean Enter: a terminal sends "\n" or "\r", and piped input
 # reads an empty line.
 ENTER = ("", "\n", "\r")
@@ -221,18 +214,9 @@ class PlayingState(_InGameState):
 
     def handle(self, text: str) -> State | None:
         key = text.strip().lower()
-        if key == "q":
-            return LeaveState(self.game, self.title)
-        if key == "i":
-            return InventoryState(self.game, self.title)
-        if key == "?":
-            return HelpState(self.game, self.title)
-        if key == "l":
-            return LogState(self.game, self.title)
-        if key == "c":
-            # Clearing the log isn't a turn, so it's a screen key, not a command.
-            self.game.clear_log()
-            return self
+        act = _ACTS.get(key)
+        if act is not None:
+            return act(self)
         command = parse_command(key)
         if command is not None:
             command.execute(self.game)
@@ -242,6 +226,12 @@ class PlayingState(_InGameState):
             return WinState(self.game, self.title)
         if self.game.killed_by is not None:
             return GameOverState(self.game, self.title)
+        return self
+
+    def cleared(self) -> State:
+        """Clear the log and stay here. Clearing isn't a turn, so it's a screen
+        key, not a command."""
+        self.game.clear_log()
         return self
 
 
@@ -267,15 +257,12 @@ class HelpState(_InGameState):
     """The keys, and what they do."""
 
     def draw(self) -> list[str]:
+        healing = _healing(self.game.settings)
         body = [
-            "  w a s d   move north, west, south or east",
-            "  >         go down the stairs, when you're on them",
-            "  i         look at your items",
-            "  p         drink a potion, healing 5 hit points",
-            "  l         read every message so far",
-            "  c         clear the messages",
-            "  ?         show this help",
-            "  q         leave this game",
+            f"  {key.keys:<10}{key.does.format(healing=healing)}"
+            for key in PLAYING_KEYS
+        ]
+        body += [
             "",
             "Each key acts as soon as you press it. Walk onto an item to pick it up.",
         ]
@@ -378,6 +365,41 @@ class LogState(_InGameState):
 
 
 @dataclass(frozen=True)
+class _Key:
+    """A key on the playing screen: the `keys` as the help shows them, what it
+    `does`, its label in the `menu` bar if it has one, and its `act` on the
+    playing screen, which gives the next screen. A key with no act here is a
+    command, bound in `commands.KEYS`."""
+
+    keys: str
+    does: str
+    menu: str = ""
+    act: "Callable[[PlayingState], State] | None" = None
+
+
+def _opens(screen: type[_InGameState]) -> "Callable[[PlayingState], State]":
+    """The act of a key that opens `screen` on the playing screen's game."""
+    return lambda playing: screen(playing.game, playing.title)
+
+
+# Every key on the playing screen, in the order the help lists them. The menu
+# bar, the help screen and the screen keys all come from here. `{healing}` is
+# filled in from the settings.
+PLAYING_KEYS = (
+    _Key("w a s d", "move north, west, south or east"),
+    _Key(">", "go down the stairs, when you're on them"),
+    _Key("i", "look at your items", "items", _opens(InventoryState)),
+    _Key("p", "drink a potion{healing}", "drink"),
+    _Key("l", "read every message so far", "log", _opens(LogState)),
+    _Key("c", "clear the messages", "clear", PlayingState.cleared),
+    _Key("?", "show this help", "help", _opens(HelpState)),
+    _Key("q", "leave this game", "leave", _opens(LeaveState)),
+)
+MENU = "  ".join(f"{key.keys} {key.menu}" for key in PLAYING_KEYS if key.menu)
+_ACTS = {key.keys: key.act for key in PLAYING_KEYS if key.act is not None}
+
+
+@dataclass(frozen=True)
 class _Size:
     """How big every screen is, for one set of settings, so they all match.
 
@@ -399,9 +421,10 @@ def _size(settings: Settings) -> _Size:
     map_height = -(-settings.level_height // MINI_MAP_SCALE)
     symbols = legend(settings)
     panel_height = max(settings.view_height, map_height, len(symbols))
-    # Room for the longest status line a game could have: the most floors, a
-    # nine-digit seed below zero, and full hit points.
-    longest = _status(settings.max_floors, settings.max_floors, -(10**9 - 1), settings)
+    # Room for the longest status line a game could have: the most floors, the
+    # longest seed the new game screen takes, and full hit points.
+    most_seed = 10**SEED_DIGITS - 1
+    longest = _status(settings.max_floors, settings.max_floors, most_seed, settings)
     hit_points = f"HP {PLAYER_HIT_POINTS}/{PLAYER_HIT_POINTS}"
     width = max(
         MIN_FRAME_WIDTH,
@@ -434,6 +457,18 @@ def legend(settings: Settings) -> list[tuple[str, str]]:
         *((item.glyph, item.name) for item, _ in settings.items),
         *((monster.glyph, monster.name) for monster, _ in settings.monsters),
     ]
+
+
+def _healing(settings: Settings) -> str:
+    """How much a potion heals with `settings`, for the help's `p` line.
+    Anything that heals is a potion to drink, so this gives the healing of
+    every kind, or the range of them, or nothing if none heal."""
+    healing = sorted({item.healing for item, _ in settings.items if item.healing})
+    if not healing:
+        return ""
+    if len(healing) == 1:
+        return f", healing {healing[0]} hit points"
+    return f", healing {healing[0]} to {healing[-1]} hit points"
 
 
 def _seed(game: Game) -> str:

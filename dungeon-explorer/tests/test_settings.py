@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from dungeon_explorer.game import Game
-from dungeon_explorer.level import Item, Monster
+from dungeon_explorer.level import PLAYER, STAIRS_DOWN, UNSEEN, Item, Monster, Tile
 from dungeon_explorer.settings import (
     DEFAULT_SETTINGS,
     Settings,
@@ -213,6 +213,24 @@ damage = 2
     assert all(warning.endswith(", so it's skipped") for warning in warnings)
 
 
+@pytest.mark.parametrize(
+    ("text", "says"),
+    [
+        ('monsters = ["bat"]\n', "[[monsters]] number 1: "),
+        (
+            '[[monsters]]\nglyph = "b"\nhit_points = 1\ndamage = 1\n',
+            "[[monsters]] number 1 name: ",
+        ),
+    ],
+)
+def test_a_kind_that_isnt_a_table_or_has_no_name_goes_by_its_number(
+    tmp_path, text, says
+):
+    _, warnings = _load(tmp_path, text)
+
+    assert warnings[0].startswith(says)
+
+
 def test_when_no_kinds_can_be_used_the_defaults_stay(tmp_path):
     settings, warnings = _load(tmp_path, '[[items]]\nname = "gem"\n')
 
@@ -246,6 +264,29 @@ damage = 1
     assert warnings == [
         "the wall-crawler can't use '#', which is taken, so it's skipped",
         "the ghost can't use '!', which is taken, so it's skipped",
+    ]
+
+
+@pytest.mark.parametrize("glyph", [*Tile, PLAYER, STAIRS_DOWN, UNSEEN])
+def test_nothing_can_look_like_what_the_screen_draws(tmp_path, glyph):
+    text = f"""
+[[monsters]]
+name = "mimic"
+glyph = "{glyph}"
+hit_points = 1
+damage = 1
+
+[[monsters]]
+name = "bat"
+glyph = "b"
+hit_points = 1
+damage = 1
+"""
+    settings, warnings = _load(tmp_path, text)
+
+    assert [monster.name for monster, _ in settings.monsters] == ["bat"]
+    assert warnings == [
+        f"the mimic can't use '{glyph}', which is taken, so it's skipped"
     ]
 
 

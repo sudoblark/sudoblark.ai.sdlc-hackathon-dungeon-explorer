@@ -2,9 +2,19 @@
 
 import heapq
 import random
+from collections.abc import Iterator
 from dataclasses import replace
 
-from dungeon_explorer.level import Item, Level, Monster, Point, Room, Tile
+from dungeon_explorer.level import (
+    Direction,
+    Item,
+    Level,
+    Monster,
+    Point,
+    Room,
+    Tile,
+    around,
+)
 from dungeon_explorer.settings import DEFAULT_SETTINGS, Settings
 
 # How generation works rather than what it makes, so these aren't settings.
@@ -15,8 +25,8 @@ ROOM_GAP = 2
 # short detour rather than zigzag.
 BEND_COST = 4
 
-# One tile north, east, south and west.
-STEPS: tuple[Point, ...] = ((0, -1), (1, 0), (0, 1), (-1, 0))
+# One tile north, east, south and west, in that order.
+STEPS: tuple[Point, ...] = tuple(direction.value for direction in Direction)
 
 
 def floor_count(seed: int, settings: Settings = DEFAULT_SETTINGS) -> int:
@@ -47,7 +57,7 @@ def generate_level(
     stairs_down = _place_stairs_down(rng, rooms)
     # Nothing goes on the eight tiles around the stairs, so they stand alone
     # in the view and never share a block on the mini-map.
-    taken = {player_start, *_around(stairs_down)}
+    taken = {player_start, *around(stairs_down)}
     items = _place_items(rng, rooms, depth, taken, settings)
     monsters = _place_monsters(rng, rooms, depth, {stairs_down, *items}, settings)
     return Level(
@@ -125,12 +135,6 @@ def _place_monsters(
     ]
 
 
-def _around(point: Point) -> set[Point]:
-    """`point` and the eight tiles around it."""
-    x, y = point
-    return {(x + dx, y + dy) for dy in (-1, 0, 1) for dx in (-1, 0, 1)}
-
-
 def _join_rooms(tiles: list[list[Tile]], rooms: list[Room]) -> list[Room]:
     """Carve corridors joining every room, working left to right.
 
@@ -165,33 +169,53 @@ def _route(
     Dijkstra's algorithm, tracking which way the corridor is heading so a
     bend can cost extra.
     """
-    blocked = {tile for other in rooms for tile in other.tiles() + other.walls()}
     goals = {door for door, _ in _doors(tiles, room)}
-    queue = [(0, door, step) for other in joined for door, step in _doors(tiles, other)]
+    rooms_tiles = {tile for other in rooms for tile in other.tiles() + other.walls()}
+    starts = [door for other in joined for door in _doors(tiles, other)]
+    return _cheapest_path(tiles, rooms_tiles - goals, goals, starts)
+
+
+def _cheapest_path(
+    tiles: list[list[Tile]],
+    blocked: set[Point],
+    goals: set[Point],
+    starts: list[tuple[Point, Point]],
+) -> list[Point] | None:
+    """The cheapest path from any of the `starts` to any of the `goals`, never
+    crossing a `blocked` tile. Each state is a tile and the step taken into
+    it, so a bend can cost more than going straight on."""
+    queue = [(0, tile, step) for tile, step in starts]
     heapq.heapify(queue)
     came_from: dict[tuple[Point, Point], tuple[Point, Point] | None] = {
-        (door, step): None for _, door, step in queue
+        start: None for start in starts
     }
-    cheapest = {(door, step): 0 for _, door, step in queue}
+    cheapest = dict.fromkeys(starts, 0)
     while queue:
         cost, tile, step = heapq.heappop(queue)
         if cost > cheapest[(tile, step)]:
             continue
         if tile in goals:
             return _walk_back((tile, step), came_from)
-        for next_step in STEPS:
-            next_tile = (tile[0] + next_step[0], tile[1] + next_step[1])
-            if _on_border(tiles, next_tile):
-                continue
-            if next_tile in blocked and next_tile not in goals:
-                continue
-            next_cost = cost + 1 + (BEND_COST if next_step != step else 0)
-            state = (next_tile, next_step)
+        for next_cost, state in _moves(tiles, blocked, cost, tile, step):
             if next_cost < cheapest.get(state, next_cost + 1):
                 cheapest[state] = next_cost
                 came_from[state] = (tile, step)
-                heapq.heappush(queue, (next_cost, next_tile, next_step))
+                heapq.heappush(queue, (next_cost, *state))
     return None
+
+
+def _moves(
+    tiles: list[list[Tile]], blocked: set[Point], cost: int, tile: Point, step: Point
+) -> Iterator[tuple[int, tuple[Point, Point]]]:
+    """Each step a corridor at `tile`, heading `step`, can take next, with the
+    cost so far: never onto the level's border or a `blocked` tile, and a bend
+    costs extra."""
+    for next_step in STEPS:
+        next_tile = (tile[0] + next_step[0], tile[1] + next_step[1])
+        if _on_border(tiles, next_tile) or next_tile in blocked:
+            continue
+        bend = BEND_COST if next_step != step else 0
+        yield cost + 1 + bend, (next_tile, next_step)
 
 
 def _doors(tiles: list[list[Tile]], room: Room) -> list[tuple[Point, Point]]:

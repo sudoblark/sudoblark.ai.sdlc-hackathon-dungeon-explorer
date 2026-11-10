@@ -3,12 +3,14 @@ import copy
 import pytest
 from helpers import game_on, level_from
 
+from dungeon_explorer.commands import KEYS
 from dungeon_explorer.game import Game
 from dungeon_explorer.generate import floor_count
-from dungeon_explorer.level import Item, Monster, Tile
-from dungeon_explorer.render import PLAYER, STAIRS_DOWN, draw_mini_map, draw_view
+from dungeon_explorer.level import PLAYER, STAIRS_DOWN, Item, Monster, Tile
+from dungeon_explorer.render import draw_mini_map, draw_view
 from dungeon_explorer.settings import DEFAULT_SETTINGS, Settings
 from dungeon_explorer.states import (
+    PLAYING_KEYS,
     GameOverState,
     HelpState,
     InventoryState,
@@ -132,6 +134,18 @@ def test_playing_ignores_an_empty_line():
     assert game == before
 
 
+@pytest.mark.parametrize("text", ["c", "C"])
+def test_c_clears_the_log_without_taking_a_turn(text):
+    # The goblin next to the player would kill them if clearing were a turn.
+    game = _about_to_die()
+    game.say("A wall is in the way.")
+    playing = PlayingState(game)
+
+    assert playing.handle(text) is playing
+    assert game.log == []
+    assert game.player.hit_points == 1
+
+
 def _parts(lines: list[str]) -> tuple[str, list[str], str, list[str]]:
     """A framed screen's label, the lines in its panel, the text of its keys
     bar, and any lines below its edge, checking the edge lines up all round."""
@@ -168,6 +182,17 @@ def test_the_inventory_says_when_it_is_empty():
     assert body == ["  You aren't carrying anything yet."]
 
 
+def test_every_key_in_the_table_is_a_command_or_acts_on_the_playing_screen():
+    # A key with no act falls through to the commands, so it must be bound
+    # there, and every command needs a row for the help and the menu.
+    commands = {k for key in PLAYING_KEYS if key.act is None for k in key.keys.split()}
+    acts = [key.keys for key in PLAYING_KEYS if key.act is not None]
+
+    assert commands == set(KEYS)
+    assert len(acts) == len(set(acts))
+    assert not set(acts) & commands
+
+
 def test_the_help_lists_every_key():
     label, body, keys, _ = _parts(HelpState(game_on(ROOM, position=(2, 2))).draw())
 
@@ -175,6 +200,26 @@ def test_the_help_lists_every_key():
     assert keys == "Press any key to go back."
     for key in ("w a s d", ">", "i", "p", "l", "c", "?", "q"):
         assert any(line.startswith(f"  {key} ") for line in body), key
+
+
+@pytest.mark.parametrize(
+    ("healing", "says"),
+    [
+        ((5,), "drink a potion, healing 5 hit points"),
+        ((3,), "drink a potion, healing 3 hit points"),
+        ((8, 3, 3), "drink a potion, healing 3 to 8 hit points"),
+        ((), "drink a potion"),
+    ],
+)
+def test_the_help_says_what_potions_heal_with_the_settings(healing, says):
+    # Anything with healing is a potion to drink, whatever it's called.
+    drinks = tuple((Item(f"drink {n}", "!", healing=n), 1) for n in healing)
+    settings = Settings(items=(*drinks, (Item("gold", "$"), 1)))
+    game = _with_settings(game_on(ROOM, position=(2, 2)), settings)
+
+    _, body, _, _ = _parts(HelpState(game).draw())
+
+    assert f"  p         {says}" in body
 
 
 @pytest.mark.parametrize("screen", [InventoryState, HelpState])
@@ -491,6 +536,11 @@ def test_other_keys_on_the_seed_screen_do_nothing():
 
     assert seed.handle("x") is seed
     assert seed.digits == "7"
+
+
+def test_leaving_from_the_seed_screen_says_a_plain_goodbye():
+    # No game has started, so there's no level or seed to name.
+    assert SeedState(_title(), digits="7").goodbye() == "Goodbye!"
 
 
 def test_leaving_asks_for_confirmation():
